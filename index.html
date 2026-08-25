@@ -348,15 +348,9 @@ function nextPointNumber(site){
 
 /* ============================== ファイル共有／保存 ============================== */
 
-async function shareOrDownloadFile(file){
-  if(navigator.canShare && (()=>{ try{ return navigator.canShare({files:[file]}); }catch(e){ return false; } })()){
-    try{
-      await navigator.share({ files:[file], title:file.name });
-      return true;
-    }catch(e){
-      return false; // キャンセルされた場合はそのまま（勝手にダウンロードしない）
-    }
-  }
+function saveFile(file){
+  // 常に「保存(ダウンロード)」一発で確定させる。共有シートを介さないので、
+  // タップし忘れで保存されない、という事態が起きない。
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url; a.download = file.name;
@@ -381,7 +375,7 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
     point.photos.push({ filename, at: nowISO() });
     save();
     render();
-    await shareOrDownloadFile(renamed);
+    saveFile(renamed);
   }
   render();
 });
@@ -432,7 +426,7 @@ async function onRecordingStop(){
     point.voiceMemos.push({ filename, at: nowISO(), durationSec });
     save();
     render();
-    await shareOrDownloadFile(file);
+    saveFile(file);
   }
   render();
 }
@@ -534,7 +528,7 @@ async function exportJson(){
   const json = JSON.stringify(payload, null, 2);
   const filename = `${data.currentSite}_data_${todayStr()}.json`;
   const file = new File([json], filename, { type:'application/json' });
-  await shareOrDownloadFile(file);
+  saveFile(file);
 }
 
 /* ============================== レンダリング：共通部品 ============================== */
@@ -739,7 +733,7 @@ function renderPointDetail(){
         ${point.photos.length ? '（' + point.photos.map(p=>escapeHtml(p.filename)).join('、') + '）' : ''}
       </div>
       <button class="btn btn-secondary btn-block" data-action="camera">📷 写真を撮る</button>
-      <div class="hint" style="margin-top:8px">共有シートが出たら「画像を保存」を選ぶとカメラロールに保存されます。</div>
+      <div class="hint" style="margin-top:8px">撮影すると自動でファイルとして保存されます（画面上部にダウンロード完了の印が出ます）。</div>
     </div>` : '';
 
   const recSection = `
@@ -827,8 +821,8 @@ function renderExport(){
       </div>
       <button class="btn btn-primary btn-block" data-action="exportJson">データを書き出す（共有／保存）</button>
       <div class="note-box" style="margin-top:10px">
-        書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに個別に保存済みです。<br><br>
-        共有シートが出たら、AirDropで別端末に送るか、「"ファイル"に保存」でUSBメモリ等に保存してください。
+        ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに、この端末のFilesアプリ（ダウンロード）へ個別に保存済みです。<br><br>
+        1日の終わりに、Filesアプリを開いて、この現場の写真・音声・JSONファイルをまとめてUSBメモリ（またはもう一方の端末にAirDrop）へコピーしてください。
       </div>
       <div class="divider"></div>
       <button class="btn btn-danger btn-block" data-action="deleteSite">この現場のデータを削除</button>
