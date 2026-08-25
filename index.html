@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>斜面調査記録</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1B1D1B">
+<style>
+  :root{
+    --bg:#1B1D1B;
+    --surface:#242621;
+    --surface-2:#2F3129;
+    --surface-3:#3A3C33;
+    --text:#EDEAE2;
+    --text-dim:#A6A497;
+    --accent:#C1662E;
+    --accent-2:#6E8F6B;
+    --danger:#C1483A;
+    --border:#3C3E36;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    height:100%;
+    overscroll-behavior-y:none;
+  }
+  body{
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  #app{ min-height:100vh; padding-bottom:96px; }
+  h1,h2,h3{ font-weight:700; margin:0; }
+  .topbar{
+    position:sticky; top:0; z-index:10;
+    background:rgba(27,29,27,0.94);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border);
+    padding:14px 16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .topbar .back{
+    background:none;border:none;color:var(--text-dim);font-size:22px;
+    padding:4px 8px; margin-left:-8px; cursor:pointer;
+  }
+  .topbar .title{ font-size:15px; color:var(--text-dim); flex:1; }
+  .stamp{
+    display:inline-flex; align-items:baseline; gap:6px;
+    font-family:var(--mono);
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:6px 10px;
+  }
+  .stamp .site{ font-size:13px; color:var(--text-dim); }
+  .stamp .num{ font-size:20px; font-weight:700; color:var(--accent); letter-spacing:0.5px; }
+  .content{ padding:16px; max-width:640px; margin:0 auto; }
+  .section-title{
+    font-size:13px; color:var(--text-dim); text-transform:uppercase;
+    letter-spacing:0.08em; margin:22px 0 8px;
+  }
+  .section-title:first-child{ margin-top:0; }
+  .card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:14px; margin-bottom:12px;
+  }
+  .field{ margin-bottom:14px; }
+  .field:last-child{ margin-bottom:0; }
+  .field label{
+    display:block; font-size:13px; color:var(--text-dim); margin-bottom:6px;
+  }
+  .field .hint{ font-size:12px; color:var(--text-dim); margin-top:4px; }
+  input[type=text], input[type=number], input[type=date], select, textarea{
+    width:100%; background:var(--surface-2); border:1px solid var(--border);
+    color:var(--text); border-radius:10px; padding:11px 12px; font-size:16px;
+    font-family:var(--sans); appearance:none; -webkit-appearance:none;
+  }
+  select{ font-family:var(--mono); }
+  textarea{ min-height:70px; resize:vertical; font-family:var(--sans); }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .row{ display:flex; gap:8px; }
+  .row > *{ flex:1; min-width:0; }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--surface-2); color:var(--text); border:1px solid var(--border);
+    border-radius:12px; padding:13px 16px; font-size:15px; font-weight:600;
+    cursor:pointer; width:100%; -webkit-tap-highlight-color:transparent;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#1B1D1B; }
+  .btn-secondary{ background:var(--surface-2); }
+  .btn-ghost{ background:transparent; border-color:transparent; color:var(--text-dim); }
+  .btn-danger{ background:transparent; border-color:var(--danger); color:var(--danger); }
+  .btn-block{ width:100%; margin-top:8px; }
+  .btn-sm{ padding:8px 12px; font-size:13px; width:auto; }
+  .list-item{
+    display:flex; align-items:center; gap:12px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:12px 14px; margin-bottom:8px; cursor:pointer;
+  }
+  .list-item:active{ background:var(--surface-2); }
+  .list-item .num{ font-family:var(--mono); font-weight:700; color:var(--accent); font-size:17px; min-width:44px; }
+  .list-item .meta{ flex:1; min-width:0; }
+  .list-item .meta .badges{ display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+  .list-item .chev{ color:var(--text-dim); }
+  .chip{
+    font-size:11px; padding:3px 8px; border-radius:999px;
+    background:var(--surface-3); color:var(--text-dim); border:1px solid var(--border);
+  }
+  .chip.on{ background:rgba(110,143,107,0.18); color:var(--accent-2); border-color:rgba(110,143,107,0.4); }
+  .chip.warn{ background:rgba(193,72,58,0.15); color:#E08A7D; border-color:rgba(193,72,58,0.35); }
+  .empty{ text-align:center; color:var(--text-dim); padding:40px 20px; font-size:14px; }
+  .bottom-bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:20;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top, rgba(27,29,27,1) 60%, rgba(27,29,27,0));
+  }
+  .bottom-bar .inner{ max-width:640px; margin:0 auto; display:flex; gap:8px; }
+  .block-card{ border-left:3px solid var(--accent); }
+  .block-card .block-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+  }
+  .block-card .block-head .cat{ font-weight:700; font-size:15px; }
+  .block-card .block-head .sub{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .grade-box{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--surface-2); border:1px dashed var(--border);
+    border-radius:10px; padding:10px 12px; margin-top:10px;
+  }
+  .grade-box .label{ font-size:12px; color:var(--text-dim); }
+  .grade-box .value{ font-family:var(--mono); font-size:20px; font-weight:700; color:var(--accent); }
+  .grade-box .value.none{ color:var(--text-dim); font-size:14px; font-weight:400; }
+  .picker-row{ display:flex; align-items:center; gap:6px; }
+  .picker-row .fixed{ font-family:var(--mono); font-size:16px; color:var(--text-dim); padding:0 2px; }
+  .category-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .category-grid .btn{ font-size:14px; padding:16px 10px; }
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:30;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .modal{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:16px 16px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+    width:100%; max-width:640px; max-height:85vh; overflow-y:auto;
+  }
+  .modal h3{ margin-bottom:12px; }
+  .device-toggle{ display:flex; gap:8px; margin-bottom:4px; }
+  .device-toggle .btn{ flex-direction:column; gap:4px; padding:16px; }
+  .device-toggle .btn small{ color:var(--text-dim); font-weight:400; font-size:12px; }
+  .device-toggle .btn.active{ background:var(--accent); border-color:var(--accent); color:#1B1D1B; }
+  .device-toggle .btn.active small{ color:#1B1D1B; opacity:0.75; }
+  .rec-indicator{
+    display:flex; align-items:center; gap:8px; color:var(--danger); font-weight:600;
+    font-size:14px; margin-bottom:8px;
+  }
+  .rec-dot{ width:10px; height:10px; border-radius:50%; background:var(--danger); animation:pulse 1s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .memo-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-top:1px solid var(--border); font-size:13px; }
+  .memo-row:first-child{ border-top:none; }
+  .memo-row .fn{ font-family:var(--mono); font-size:12px; color:var(--text-dim); }
+  .note-box{ font-size:13px; color:var(--text-dim); line-height:1.6; background:var(--surface-2); border-radius:10px; padding:12px; }
+  .divider{ height:1px; background:var(--border); margin:16px 0; }
+  a{ color:var(--accent); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+<script>
+'use strict';
+
+/* ============================== 定数・分類テーブル ============================== */
+
+const CATEGORIES = ['地質','地形','堆積物','水・浸食','落石源','人工構造物','ほか'];
+
+const HARDNESS_OPTIONS = [
+  {code:'A', desc:'極硬（ハンマーで簡単に割れない／キンキン）'},
+  {code:'B', desc:'硬（ハンマーで金属音／カンカン）'},
+  {code:'C', desc:'中硬（ハンマーで容易に割れる／コンコン）'},
+  {code:'D', desc:'軟（ハンマーでボロボロに砕ける／ボンボン）'},
+  {code:'E', desc:'極軟（マサ状・粘土状／ボソボソ）'},
+];
+const SHAPE_OPTIONS = [
+  {code:'I', desc:'棒状コア 50cm以上'},
+  {code:'II', desc:'棒状コア 50〜15cm'},
+  {code:'III', desc:'棒状〜片状コア 15〜5cm'},
+  {code:'IV', desc:'片状コア 5cm以下（外周の一部残存）'},
+  {code:'V', desc:'主に角礫状'},
+  {code:'VI', desc:'主に砂状'},
+  {code:'VII', desc:'主に粘土状'},
+  {code:'VIII', desc:'コア採取不可（スライム含む）'},
+];
+const CRACK_OPTIONS = [
+  {code:'a', desc:'密着 or 分離／割れ目沿いの風化・変質なし'},
+  {code:'b', desc:'割れ目沿いに風化・変質あり／岩片はほぼ健全'},
+  {code:'c', desc:'割れ目沿いの岩片が風化・変質し軟質化'},
+  {code:'d', desc:'割れ目を認識できない（角礫状・砂状・粘土状）'},
+];
+// 岩級区分判定基準（硬軟区分 × 形状区分 × 割れ目状態区分 → 岩級）
+// 参考資料のマトリクスを転記。未定義の組み合わせ（表内の「-」）は null。
+// ※ 現場に出る前に一度、元の資料と突き合わせて確認してください。
+const GRADE_TABLE = {
+  A:{ I:{a:'B',b:'CH'}, II:{a:'CH',b:'CH'}, III:{b:'CH'} },
+  B:{ I:{a:'CH',b:'CH'}, II:{a:'CH',b:'CH'}, III:{a:'CM',b:'CM',c:'CM'}, IV:{b:'CM',c:'CL'}, V:{b:'CL',c:'CL'} },
+  C:{ II:{c:'CM'}, III:{b:'CM',c:'CL'}, IV:{b:'CL',c:'CL',d:'CL'}, V:{c:'CL',d:'D'} },
+  D:{ IV:{c:'D'}, V:{c:'D',d:'D'}, VI:{d:'D'} },
+  E:{ V:{d:'D'}, VI:{d:'D'} },
+};
+function calcGrade(h,s,c){
+  if(!h||!s||!c) return null;
+  const row = GRADE_TABLE[h]; if(!row) return null;
+  const cell = row[s]; if(!cell) return null;
+  return cell[c] || null;
+}
+
+const CATEGORY_SCHEMA = {
+  '地質':{
+    fields:[
+      {key:'rockType', label:'岩種', type:'select', options:['砂岩','泥岩','砂岩優勢互層','泥岩優勢互層','礫岩','チャート','緑色岩','石灰岩'], allowOther:true},
+      {key:'lithofacies', label:'岩相', type:'select', options:['堅岩','風化岩','亀裂質','緩み岩'], allowOther:true},
+      {key:'structureType', label:'構造', type:'select', options:['層理面','節理面','断層面','劈開面'], allowOther:true},
+      {key:'strikeDip', label:'走向傾斜', type:'strikedip'},
+      {key:'hardness', label:'軟硬（打音）', type:'select', options:HARDNESS_OPTIONS.map(o=>o.code), optionMeta:HARDNESS_OPTIONS, grade:true},
+      {key:'coreShape', label:'割れ目間隔（コア形状）', type:'select', options:SHAPE_OPTIONS.map(o=>o.code), optionMeta:SHAPE_OPTIONS, grade:true},
+      {key:'crackState', label:'風化区分（割れ目状態）', type:'select', options:CRACK_OPTIONS.map(o=>o.code), optionMeta:CRACK_OPTIONS, grade:true},
+    ]
+  },
+  '地形':{
+    subtypeField:{key:'landformType', label:'種類', options:['崩壊跡','地すべり','クリープ','遷急線','遷緩線','段差','渓岸浸食','自由']},
+    subtypeFields:{
+      '崩壊跡':[ {key:'age', label:'新・古', type:'select', options:['新','古']}, {key:'height', label:'高さ(m)', type:'number'}, {key:'width', label:'幅(m)', type:'number'} ],
+      '地すべり':[ {key:'part', label:'部位', type:'select', options:['頭部','側部','末端部','自由']}, {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']} ],
+      'クリープ':[ {key:'part', label:'部位', type:'select', options:['頭部','側部','末端部','自由']}, {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']} ],
+      '遷急線':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']} ],
+      '遷緩線':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']} ],
+      '段差':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'height', label:'高さ(m)', type:'number'} ],
+      '渓岸浸食':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'height', label:'高さ(m)', type:'number'} ],
+      '自由':[ {key:'note', label:'内容', type:'textarea'} ],
+    }
+  },
+  '堆積物':{
+    fields:[
+      {key:'depositType', label:'種類', type:'select', options:['崖錐堆積物','段丘堆積物','渓床堆積物','土石流堆積物'], allowOther:true},
+      {key:'thickness', label:'層厚(m)', type:'number'},
+      {key:'gravelSize', label:'礫径(cm)', type:'number'},
+      {key:'depositState', label:'堆積状況', type:'select', options:['締まる','ルーズ','浸食'], allowOther:true},
+      {key:'note', label:'備考', type:'textarea'},
+      {key:'vegType', label:'植生：種類', type:'select', options:['スギ','ヒノキ','広葉樹'], allowOther:true},
+      {key:'dbh', label:'植生：胸高直径(cm)', type:'number'},
+    ]
+  },
+  '水・浸食':{
+    fields:[
+      {key:'waterType', label:'種類', type:'select', options:['湧水','表流水','伏流']},
+      {key:'flow', label:'流量(L/min)', type:'number'},
+      {key:'gully', label:'ガリー', type:'textarea'},
+    ]
+  },
+  '落石源':{
+    fields:[
+      {key:'rockKind', label:'種類', type:'select', options:['浮石','転石']},
+      {key:'grouping', label:'単体／群', type:'select', options:['単体','群']},
+      {key:'sizeH', label:'サイズ：高さ(m)', type:'number', showIf:f=>f.grouping==='単体'},
+      {key:'sizeW', label:'サイズ：幅(m)', type:'number', showIf:f=>f.grouping==='単体'},
+      {key:'sizeD', label:'サイズ：奥行き(m)', type:'number', showIf:f=>f.grouping==='単体'},
+      {key:'maxSizeH', label:'最大サイズ：高さ(m)', type:'number', showIf:f=>f.grouping==='群'},
+      {key:'maxSizeW', label:'最大サイズ：幅(m)', type:'number', showIf:f=>f.grouping==='群'},
+      {key:'maxSizeD', label:'最大サイズ：奥行き(m)', type:'number', showIf:f=>f.grouping==='群'},
+      {key:'distH', label:'分布範囲：高さ(m)', type:'number', showIf:f=>f.grouping==='群'},
+      {key:'distW', label:'分布範囲：幅(m)', type:'number', showIf:f=>f.grouping==='群'},
+      {key:'distD', label:'分布範囲：奥行き(m)', type:'number', showIf:f=>f.grouping==='群'},
+      {key:'stability', label:'安定度', type:'text'},
+      {key:'note', label:'自由記載', type:'textarea'},
+    ]
+  },
+  '人工構造物':{
+    fields:[
+      {key:'type', label:'種類', type:'text'},
+      {key:'sizeH', label:'サイズ：高さ(m)', type:'number'},
+      {key:'sizeW', label:'サイズ：幅(m)', type:'number'},
+      {key:'note', label:'自由記載', type:'textarea'},
+    ]
+  },
+  'ほか':{
+    fields:[ {key:'note', label:'内容', type:'textarea'} ]
+  }
+};
+
+/* ============================== ユーティリティ ============================== */
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;
+}
+function todayISODate(){
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+function nowISO(){ return new Date().toISOString(); }
+function escapeHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+/* ============================== 保存データ ============================== */
+
+const STORAGE_KEY = 'slopeSurveyData_v1';
+
+function defaultData(){
+  return { deviceMode:null, currentSite:null, ui:{ screen:'siteSelect', currentPointId:null, recording:false }, sites:{} };
+}
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      return Object.assign(defaultData(), parsed, { ui: Object.assign(defaultData().ui, parsed.ui||{}) });
+    }
+  }catch(e){ console.warn('load failed', e); }
+  return defaultData();
+}
+let data = loadData();
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+  catch(e){ alert('保存に失敗しました（端末の空き容量を確認してください）: ' + e.message); }
+}
+
+function getSite(){ return data.currentSite ? data.sites[data.currentSite] : null; }
+function getCurrentPoint(){
+  const site = getSite();
+  if(!site || !data.ui.currentPointId) return null;
+  return site.points.find(p => p.id === data.ui.currentPointId) || null;
+}
+function nextPointNumber(site){
+  site.pointSeq = (site.pointSeq || 0) + 1;
+  return pad2(site.pointSeq);
+}
+
+/* ============================== ファイル共有／保存 ============================== */
+
+async function shareOrDownloadFile(file){
+  if(navigator.canShare && (()=>{ try{ return navigator.canShare({files:[file]}); }catch(e){ return false; } })()){
+    try{
+      await navigator.share({ files:[file], title:file.name });
+      return true;
+    }catch(e){
+      return false; // キャンセルされた場合はそのまま（勝手にダウンロードしない）
+    }
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url; a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 15000);
+  return true;
+}
+
+/* ============================== 写真 ============================== */
+
+document.getElementById('cameraInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  const point = getCurrentPoint();
+  if(!point || files.length === 0) return;
+  for(const file of files){
+    point.photos = point.photos || [];
+    const branch = point.photos.length + 1;
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const filename = `${data.currentSite}${point.number}-${pad2(branch)}.${ext}`;
+    const renamed = new File([file], filename, { type: file.type || 'image/jpeg' });
+    point.photos.push({ filename, at: nowISO() });
+    save();
+    render();
+    await shareOrDownloadFile(renamed);
+  }
+  render();
+});
+function triggerCamera(){ document.getElementById('cameraInput').click(); }
+
+/* ============================== ボイスメモ ============================== */
+
+let mediaRecorder = null, recordedChunks = [], recStream = null, recStart = null;
+
+async function startRecording(){
+  try{
+    recStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+  }catch(e){
+    alert('マイクを使用できませんでした。設定でマイクの許可を確認してください。');
+    return;
+  }
+  const cand = ['audio/mp4','audio/aac','audio/webm'];
+  const mimeType = cand.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+  try{
+    mediaRecorder = mimeType ? new MediaRecorder(recStream, {mimeType}) : new MediaRecorder(recStream);
+  }catch(e){
+    mediaRecorder = new MediaRecorder(recStream);
+  }
+  recordedChunks = [];
+  mediaRecorder.ondataavailable = (ev) => { if(ev.data && ev.data.size > 0) recordedChunks.push(ev.data); };
+  mediaRecorder.onstop = onRecordingStop;
+  mediaRecorder.start();
+  recStart = Date.now();
+  data.ui.recording = true;
+  render();
+}
+function stopRecording(){
+  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+}
+async function onRecordingStop(){
+  const point = getCurrentPoint();
+  const mt = mediaRecorder.mimeType || '';
+  const blob = new Blob(recordedChunks, { type: mt || 'audio/webm' });
+  const ext = mt.includes('mp4') ? 'm4a' : (mt.includes('aac') ? 'aac' : 'webm');
+  if(recStream) recStream.getTracks().forEach(t => t.stop());
+  data.ui.recording = false;
+  if(point){
+    point.voiceMemos = point.voiceMemos || [];
+    const idx = point.voiceMemos.length + 1;
+    const filename = `${data.currentSite}${point.number}_memo-${pad2(idx)}.${ext}`;
+    const file = new File([blob], filename, { type: blob.type });
+    const durationSec = Math.max(1, Math.round((Date.now() - recStart)/1000));
+    point.voiceMemos.push({ filename, at: nowISO(), durationSec });
+    save();
+    render();
+    await shareOrDownloadFile(file);
+  }
+  render();
+}
+
+/* ============================== ナビゲーション ============================== */
+
+function goSiteSelect(){ data.ui.screen='siteSelect'; data.ui.currentPointId=null; save(); render(); }
+function goPointList(){ data.ui.screen='pointList'; data.ui.currentPointId=null; save(); render(); }
+function openPoint(id){ data.ui.screen='pointDetail'; data.ui.currentPointId=id; save(); render(); }
+function goExport(){ data.ui.screen='export'; save(); render(); }
+
+function setDeviceMode(mode){ data.deviceMode = mode; save(); render(); }
+
+function selectSite(name){ data.currentSite = name; goPointList(); }
+function createSite(){
+  const input = document.getElementById('newSiteInput');
+  const name = (input.value || '').trim();
+  if(!name){ input.focus(); return; }
+  if(!data.sites[name]) data.sites[name] = { createdAt: nowISO(), pointSeq:0, points:[] };
+  input.value = '';
+  selectSite(name);
+}
+
+function addPoint(){
+  const site = getSite(); if(!site) return;
+  const number = nextPointNumber(site);
+  const point = {
+    id: uid(), number, date: todayISODate(),
+    gradient:'', groundType:'', vegetation:'',
+    photos:[], voiceMemos:[], blocks:[],
+  };
+  site.points.push(point);
+  save();
+  openPoint(point.id);
+}
+
+function updatePointField(key, value){
+  const point = getCurrentPoint(); if(!point) return;
+  point[key] = value; save();
+}
+
+function addBlock(category){
+  const point = getCurrentPoint(); if(!point) return;
+  const block = { id: uid(), category, subtype:'', fields:{} };
+  point.blocks.push(block);
+  save();
+  closeModal();
+  render();
+}
+function removeBlock(blockId){
+  const point = getCurrentPoint(); if(!point) return;
+  if(!confirm('この調査対象ブロックを削除しますか？')) return;
+  point.blocks = point.blocks.filter(b => b.id !== blockId);
+  save(); render();
+}
+function updateBlockField(blockId, key, value){
+  const point = getCurrentPoint(); if(!point) return;
+  const block = point.blocks.find(b => b.id === blockId); if(!block) return;
+  block.fields[key] = value; save();
+}
+function updateBlockSubtype(blockId, subtype){
+  const point = getCurrentPoint(); if(!point) return;
+  const block = point.blocks.find(b => b.id === blockId); if(!block) return;
+  block.subtype = subtype; block.fields = {}; save(); render();
+}
+function updateStrikeDip(blockId, part, value){
+  const point = getCurrentPoint(); if(!point) return;
+  const block = point.blocks.find(b => b.id === blockId); if(!block) return;
+  block.fields.strikeDip = Object.assign({d1:'',ew:'E',d2:'',ns:'N'}, block.fields.strikeDip||{});
+  block.fields.strikeDip[part] = value;
+  save(); render();
+}
+
+let modalContent = null;
+function openModal(html){ modalContent = html; render(); }
+function closeModal(){ modalContent = null; render(); }
+
+function deleteSite(){
+  if(!confirm(`現場「${data.currentSite}」の記録をすべて削除します。よろしいですか？`)) return;
+  if(!confirm('本当に削除しますか？この操作は取り消せません。')) return;
+  delete data.sites[data.currentSite];
+  data.currentSite = null;
+  goSiteSelect();
+}
+
+/* ============================== 書き出し ============================== */
+
+function buildExportPayload(){
+  const site = getSite();
+  return {
+    site: data.currentSite,
+    exportedAt: nowISO(),
+    deviceMode: data.deviceMode,
+    points: site ? site.points : [],
+  };
+}
+async function exportJson(){
+  const payload = buildExportPayload();
+  const json = JSON.stringify(payload, null, 2);
+  const filename = `${data.currentSite}_data_${todayStr()}.json`;
+  const file = new File([json], filename, { type:'application/json' });
+  await shareOrDownloadFile(file);
+}
+
+/* ============================== レンダリング：共通部品 ============================== */
+
+function renderField(scope, field, fieldsObj){
+  const currentValue = fieldsObj[field.key];
+  const bindAttr = `data-field="${field.key}"`;
+  const id = `f_${scope}_${field.key}`;
+  let inner = '';
+  if(field.type === 'select'){
+    const opts = field.options.map(opt => {
+      const meta = field.optionMeta && field.optionMeta.find(m => m.code === opt);
+      const text = meta ? `${opt}：${meta.desc}` : opt;
+      const sel = currentValue === opt ? 'selected' : '';
+      return `<option value="${escapeHtml(opt)}" ${sel}>${escapeHtml(text)}</option>`;
+    }).join('');
+    const otherOpt = field.allowOther ? `<option value="__other__" ${currentValue==='__other__'?'selected':''}>その他（自由記載）</option>` : '';
+    inner = `<select id="${id}" ${bindAttr} data-scope="${scope}">
+      <option value="">選択してください</option>
+      ${opts}${otherOpt}
+    </select>`;
+    if(field.allowOther && currentValue === '__other__'){
+      const otherValue = fieldsObj[field.key + '__other'];
+      inner += `<input type="text" style="margin-top:8px" placeholder="自由記載"
+        data-field="${field.key}__other" data-scope="${scope}" value="${escapeHtml(otherValue)}">`;
+    }
+  } else if(field.type === 'number'){
+    inner = `<input type="number" inputmode="decimal" step="0.1" id="${id}" ${bindAttr} data-scope="${scope}" value="${escapeHtml(currentValue||'')}">`;
+  } else if(field.type === 'textarea'){
+    inner = `<textarea id="${id}" ${bindAttr} data-scope="${scope}">${escapeHtml(currentValue||'')}</textarea>`;
+  } else {
+    inner = `<input type="text" id="${id}" ${bindAttr} data-scope="${scope}" value="${escapeHtml(currentValue||'')}">`;
+  }
+  return `<div class="field"><label for="${id}">${escapeHtml(field.label)}</label>${inner}</div>`;
+}
+
+function degreeOptions(current){
+  let html = '<option value="">--</option>';
+  for(let i=0;i<=90;i++){
+    const v = pad2(i);
+    html += `<option value="${v}" ${current===v?'selected':''}>${v}°</option>`;
+  }
+  return html;
+}
+function renderStrikeDip(block){
+  const sd = Object.assign({d1:'',ew:'E',d2:'',ns:'N'}, block.fields.strikeDip||{});
+  const display = (sd.d1 && sd.d2) ? `N${sd.d1}${sd.ew}${sd.d2}${sd.ns}` : '（未入力）';
+  return `<div class="field">
+    <label>走向傾斜</label>
+    <div class="picker-row">
+      <span class="fixed">N</span>
+      <select data-sdpart="d1" data-blockid="${block.id}">${degreeOptions(sd.d1)}</select>
+      <select data-sdpart="ew" data-blockid="${block.id}">
+        <option value="E" ${sd.ew==='E'?'selected':''}>E</option>
+        <option value="W" ${sd.ew==='W'?'selected':''}>W</option>
+      </select>
+      <select data-sdpart="d2" data-blockid="${block.id}">${degreeOptions(sd.d2)}</select>
+      <select data-sdpart="ns" data-blockid="${block.id}">
+        <option value="N" ${sd.ns==='N'?'selected':''}>N</option>
+        <option value="S" ${sd.ns==='S'?'selected':''}>S</option>
+      </select>
+    </div>
+    <div class="hint">${escapeHtml(display)}</div>
+  </div>`;
+}
+
+function renderBlock(block){
+  const schema = CATEGORY_SCHEMA[block.category];
+  let fieldsHtml = '';
+  let gradeHtml = '';
+
+  if(block.category === '地形'){
+    const st = schema.subtypeField;
+    const opts = st.options.map(o => `<option value="${escapeHtml(o)}" ${block.subtype===o?'selected':''}>${escapeHtml(o)}</option>`).join('');
+    fieldsHtml += `<div class="field"><label>${escapeHtml(st.label)}</label>
+      <select data-subtype-select data-blockid="${block.id}"><option value="">選択してください</option>${opts}</select></div>`;
+    if(block.subtype && schema.subtypeFields[block.subtype]){
+      for(const f of schema.subtypeFields[block.subtype]){
+        fieldsHtml += renderField(block.id, f, block.fields);
+      }
+    }
+  } else {
+    for(const f of schema.fields){
+      if(f.showIf && !f.showIf(block.fields)) continue;
+      if(f.type === 'strikedip'){ fieldsHtml += renderStrikeDip(block); continue; }
+      fieldsHtml += renderField(block.id, f, block.fields);
+    }
+    if(block.category === '地質'){
+      const grade = calcGrade(block.fields.hardness, block.fields.coreShape, block.fields.crackState);
+      gradeHtml = `<div class="grade-box">
+        <span class="label">岩級（自動判定）</span>
+        <span class="value ${grade?'':'none'}">${grade ? escapeHtml(grade) : '3項目を選ぶと表示されます'}</span>
+      </div>`;
+    }
+  }
+
+  return `<div class="card block-card" data-blockid="${block.id}">
+    <div class="block-head">
+      <div>
+        <div class="cat">${escapeHtml(block.category)}</div>
+        ${block.subtype ? `<div class="sub">${escapeHtml(block.subtype)}</div>` : ''}
+      </div>
+      <button class="btn btn-ghost btn-sm" data-action="removeBlock" data-blockid="${block.id}">削除</button>
+    </div>
+    ${fieldsHtml}
+    ${gradeHtml}
+  </div>`;
+}
+
+/* ============================== レンダリング：画面 ============================== */
+
+function renderSiteSelect(){
+  const sites = Object.keys(data.sites);
+  const modeLabel = { photo:'写真あり（撮影担当）', data:'データ入力のみ（記録担当）' };
+  return `
+    <div class="topbar"><div class="title">斜面調査記録</div></div>
+    <div class="content">
+      <div class="section-title">この端末の役割</div>
+      <div class="device-toggle">
+        <button class="btn ${data.deviceMode==='photo'?'active':''}" data-action="setMode" data-mode="photo">
+          写真あり<small>撮影を担当する端末</small>
+        </button>
+        <button class="btn ${data.deviceMode==='data'?'active':''}" data-action="setMode" data-mode="data">
+          データ入力のみ<small>写真なしで記録する端末</small>
+        </button>
+      </div>
+
+      <div class="section-title">現場</div>
+      ${sites.length === 0 ? `<div class="empty">まだ現場がありません<br>下から新しい現場を作成してください</div>` : ''}
+      ${sites.map(name => {
+        const site = data.sites[name];
+        return `<div class="list-item" data-action="selectSite" data-name="${escapeHtml(name)}">
+          <div class="meta">
+            <div style="font-weight:600">${escapeHtml(name)}</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px">箇所数：${site.points.length}</div>
+          </div>
+          <div class="chev">›</div>
+        </div>`;
+      }).join('')}
+
+      <div class="card" style="margin-top:16px">
+        <div class="field">
+          <label>新しい現場を作成</label>
+          <input type="text" id="newSiteInput" placeholder="例：岡山">
+        </div>
+        <button class="btn btn-primary btn-block" data-action="createSite">作成して開始</button>
+      </div>
+      ${!data.deviceMode ? `<div class="note-box" style="margin-top:12px">先に端末の役割（写真あり／データ入力のみ）を選んでください。</div>` : ''}
+    </div>
+  `;
+}
+
+function renderPointList(){
+  const site = getSite();
+  if(!site) return renderSiteSelect();
+  const items = site.points.slice().sort((a,b)=> a.number.localeCompare(b.number));
+  return `
+    <div class="topbar">
+      <button class="back" data-action="goSiteSelect">‹</button>
+      <div class="stamp"><span class="site">${escapeHtml(data.currentSite)}</span></div>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" data-action="goExport">書き出し</button>
+    </div>
+    <div class="content">
+      <div class="section-title">箇所一覧（${items.length}）</div>
+      ${items.length===0 ? `<div class="empty">まだ箇所がありません<br>下のボタンから追加してください</div>` : ''}
+      ${items.map(p => {
+        const cats = p.blocks.map(b=>b.category);
+        const uniqueCats = [...new Set(cats)];
+        const photoOk = data.deviceMode==='data' ? true : (p.photos.length>0);
+        return `<div class="list-item" data-action="openPoint" data-id="${p.id}">
+          <div class="num">${escapeHtml(p.number)}</div>
+          <div class="meta">
+            <div style="font-size:13px;color:var(--text-dim)">${escapeHtml(p.date||'')}</div>
+            <div class="badges">
+              ${data.deviceMode!=='data' ? `<span class="chip ${photoOk?'on':'warn'}">写真 ${p.photos.length}</span>` : ''}
+              ${p.voiceMemos.length ? `<span class="chip on">🎙 ${p.voiceMemos.length}</span>` : ''}
+              ${uniqueCats.length===0 ? `<span class="chip warn">調査対象未入力</span>` :
+                uniqueCats.map(c=>`<span class="chip on">${escapeHtml(c)}</span>`).join('')}
+            </div>
+          </div>
+          <div class="chev">›</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="bottom-bar"><div class="inner">
+      <button class="btn btn-primary" data-action="addPoint">＋ 新しい箇所を追加</button>
+    </div></div>
+  `;
+}
+
+function renderPointDetail(){
+  const point = getCurrentPoint();
+  if(!point) return renderPointList();
+  const showPhoto = data.deviceMode !== 'data';
+
+  const photoSection = showPhoto ? `
+    <div class="section-title">写真</div>
+    <div class="card">
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">
+        撮影済み：${point.photos.length}枚
+        ${point.photos.length ? '（' + point.photos.map(p=>escapeHtml(p.filename)).join('、') + '）' : ''}
+      </div>
+      <button class="btn btn-secondary btn-block" data-action="camera">📷 写真を撮る</button>
+      <div class="hint" style="margin-top:8px">共有シートが出たら「画像を保存」を選ぶとカメラロールに保存されます。</div>
+    </div>` : '';
+
+  const recSection = `
+    <div class="section-title">ボイスメモ</div>
+    <div class="card">
+      ${data.ui.recording ? `<div class="rec-indicator"><span class="rec-dot"></span>録音中…</div>` : ''}
+      <button class="btn ${data.ui.recording?'btn-danger':'btn-secondary'} btn-block" data-action="${data.ui.recording?'stopRec':'startRec'}">
+        ${data.ui.recording ? '■ 録音を止めて保存' : '🎙 録音開始'}
+      </button>
+      ${point.voiceMemos.length ? point.voiceMemos.map(m => `
+        <div class="memo-row"><span class="fn">${escapeHtml(m.filename)}</span><span>${m.durationSec}秒</span></div>
+      `).join('') : `<div class="hint" style="margin-top:8px">録音はまだありません</div>`}
+    </div>`;
+
+  const baseSection = `
+    <div class="section-title">斜面基礎情報</div>
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>勾配（°）</label><input type="number" inputmode="decimal" data-pointfield="gradient" value="${escapeHtml(point.gradient)}"></div>
+        <div class="field"><label>岩盤／土砂</label>
+          <select data-pointfield="groundType">
+            <option value="">選択</option>
+            <option value="岩盤" ${point.groundType==='岩盤'?'selected':''}>岩盤</option>
+            <option value="土砂" ${point.groundType==='土砂'?'selected':''}>土砂</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>植生（概況）</label><input type="text" data-pointfield="vegetation" value="${escapeHtml(point.vegetation)}" placeholder="例：スギ植林、疎"></div>
+    </div>`;
+
+  const blocksSection = `
+    <div class="section-title">調査対象</div>
+    ${point.blocks.map(renderBlock).join('')}
+    <button class="btn btn-secondary btn-block" data-action="openAddBlock">＋ 調査対象を追加</button>
+  `;
+
+  return `
+    <div class="topbar">
+      <button class="back" data-action="goPointList">‹</button>
+      <div class="stamp"><span class="site">${escapeHtml(data.currentSite)}</span><span class="num">${escapeHtml(point.number)}</span></div>
+      <div style="flex:1"></div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="row">
+          <div class="field"><label>箇所番号</label><input type="text" data-pointfield="number" value="${escapeHtml(point.number)}"></div>
+          <div class="field"><label>日付</label><input type="date" data-pointfield="date" value="${escapeHtml(point.date)}"></div>
+        </div>
+      </div>
+      ${photoSection}
+      ${baseSection}
+      ${recSection}
+      ${blocksSection}
+    </div>
+  `;
+}
+
+function renderAddBlockModal(){
+  return `<div class="modal-backdrop" data-action="closeModalBackdrop">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>調査対象を選択</h3>
+      <div class="category-grid">
+        ${CATEGORIES.map(c => `<button class="btn btn-secondary" data-action="addBlock" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+      </div>
+      <button class="btn btn-ghost btn-block" style="margin-top:14px" data-action="closeModal">キャンセル</button>
+    </div>
+  </div>`;
+}
+
+function renderExport(){
+  const site = getSite();
+  const totalPhotos = site ? site.points.reduce((s,p)=>s+p.photos.length,0) : 0;
+  const totalMemos = site ? site.points.reduce((s,p)=>s+p.voiceMemos.length,0) : 0;
+  return `
+    <div class="topbar">
+      <button class="back" data-action="goPointList">‹</button>
+      <div class="title">書き出し</div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div style="font-weight:600;margin-bottom:6px">${escapeHtml(data.currentSite||'')}</div>
+        <div style="font-size:13px;color:var(--text-dim)">
+          箇所数：${site?site.points.length:0}／写真：${totalPhotos}枚／ボイスメモ：${totalMemos}件
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" data-action="exportJson">データを書き出す（共有／保存）</button>
+      <div class="note-box" style="margin-top:10px">
+        書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに個別に保存済みです。<br><br>
+        共有シートが出たら、AirDropで別端末に送るか、「"ファイル"に保存」でUSBメモリ等に保存してください。
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-danger btn-block" data-action="deleteSite">この現場のデータを削除</button>
+    </div>
+  `;
+}
+
+/* ============================== メインレンダー ============================== */
+
+function render(){
+  let html;
+  switch(data.ui.screen){
+    case 'pointList': html = renderPointList(); break;
+    case 'pointDetail': html = renderPointDetail(); break;
+    case 'export': html = renderExport(); break;
+    default: html = renderSiteSelect();
+  }
+  document.getElementById('app').innerHTML = html + (modalContent || '');
+}
+
+/* ============================== イベント委譲 ============================== */
+
+document.getElementById('app').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if(!el) return;
+  const action = el.dataset.action;
+  switch(action){
+    case 'setMode': setDeviceMode(el.dataset.mode); break;
+    case 'selectSite': selectSite(el.dataset.name); break;
+    case 'createSite': createSite(); break;
+    case 'goSiteSelect': goSiteSelect(); break;
+    case 'goPointList': goPointList(); break;
+    case 'openPoint': openPoint(el.dataset.id); break;
+    case 'addPoint': addPoint(); break;
+    case 'goExport': goExport(); break;
+    case 'exportJson': exportJson(); break;
+    case 'deleteSite': deleteSite(); break;
+    case 'camera': triggerCamera(); break;
+    case 'startRec': startRecording(); break;
+    case 'stopRec': stopRecording(); break;
+    case 'openAddBlock': openModal(renderAddBlockModal()); break;
+    case 'closeModal': closeModal(); break;
+    case 'closeModalBackdrop': closeModal(); break;
+    case 'addBlock': addBlock(el.dataset.category); break;
+    case 'removeBlock': removeBlock(el.dataset.blockid); break;
+  }
+});
+
+document.getElementById('app').addEventListener('change', (e) => {
+  const t = e.target;
+  if(t.dataset.pointfield){
+    updatePointField(t.dataset.pointfield, t.value);
+    if(t.dataset.pointfield === 'number') render();
+    return;
+  }
+  if(t.dataset.subtypeSelect !== undefined){
+    updateBlockSubtype(t.dataset.blockid, t.value);
+    return;
+  }
+  if(t.dataset.sdpart){
+    updateStrikeDip(t.dataset.blockid, t.dataset.sdpart, t.value);
+    return;
+  }
+  if(t.dataset.field && t.dataset.scope){
+    updateBlockField(t.dataset.scope, t.dataset.field, t.value);
+    if(t.tagName === 'SELECT') render();
+    return;
+  }
+});
+document.getElementById('app').addEventListener('input', (e) => {
+  const t = e.target;
+  if(t.tagName === 'SELECT') return; // change イベントで処理済み
+  if(t.dataset.pointfield){ updatePointField(t.dataset.pointfield, t.value); return; }
+  if(t.dataset.field && t.dataset.scope){ updateBlockField(t.dataset.scope, t.dataset.field, t.value); return; }
+});
+
+/* ============================== 初期化 ============================== */
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+
+render();
+</script>
+</body>
+</html>
