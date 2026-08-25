@@ -8,19 +8,19 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#1B1D1B">
+<meta name="theme-color" content="#F4F1E9">
 <style>
   :root{
-    --bg:#1B1D1B;
-    --surface:#242621;
-    --surface-2:#2F3129;
-    --surface-3:#3A3C33;
-    --text:#EDEAE2;
-    --text-dim:#A6A497;
-    --accent:#C1662E;
-    --accent-2:#6E8F6B;
-    --danger:#C1483A;
-    --border:#3C3E36;
+    --bg:#F4F1E9;
+    --surface:#FFFFFF;
+    --surface-2:#ECE7D8;
+    --surface-3:#DFD9C5;
+    --text:#2B2A22;
+    --text-dim:#726F5E;
+    --accent:#B15C22;
+    --accent-2:#4C6E4E;
+    --danger:#AE402F;
+    --border:#DBD5C2;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   }
@@ -40,7 +40,7 @@
   h1,h2,h3{ font-weight:700; margin:0; }
   .topbar{
     position:sticky; top:0; z-index:10;
-    background:rgba(27,29,27,0.94);
+    background:rgba(244,241,233,0.94);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--border);
     padding:14px 16px;
@@ -71,12 +71,16 @@
     background:var(--surface); border:1px solid var(--border);
     border-radius:14px; padding:14px; margin-bottom:12px;
   }
+  .card-tight{ padding:8px 12px; }
   .field{ margin-bottom:14px; }
   .field:last-child{ margin-bottom:0; }
   .field label{
     display:block; font-size:13px; color:var(--text-dim); margin-bottom:6px;
   }
   .field .hint{ font-size:12px; color:var(--text-dim); margin-top:4px; }
+  .field-compact{ margin:4px 0; }
+  .field-compact label{ display:block; font-size:11px; color:var(--text-dim); margin-bottom:2px; }
+  .compact-input{ padding:6px 9px !important; font-size:14px !important; }
   input[type=text], input[type=number], input[type=date], select, textarea{
     width:100%; background:var(--surface-2); border:1px solid var(--border);
     color:var(--text); border-radius:10px; padding:11px 12px; font-size:16px;
@@ -100,6 +104,7 @@
   .btn-danger{ background:transparent; border-color:var(--danger); color:var(--danger); }
   .btn-block{ width:100%; margin-top:8px; }
   .btn-sm{ padding:8px 12px; font-size:13px; width:auto; }
+  .btn-compact{ padding:8px 14px; font-size:14px; }
   .list-item{
     display:flex; align-items:center; gap:12px;
     background:var(--surface); border:1px solid var(--border);
@@ -120,7 +125,7 @@
   .bottom-bar{
     position:fixed; left:0; right:0; bottom:0; z-index:20;
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
-    background:linear-gradient(to top, rgba(27,29,27,1) 60%, rgba(27,29,27,0));
+    background:linear-gradient(to top, rgba(244,241,233,1) 60%, rgba(244,241,233,0));
   }
   .bottom-bar .inner{ max-width:640px; margin:0 auto; display:flex; gap:8px; }
   .block-card{ border-left:3px solid var(--accent); }
@@ -455,7 +460,6 @@ function addPoint(){
   const number = nextPointNumber(site);
   const point = {
     id: uid(), number, date: todayISODate(),
-    gradient:'', groundType:'', vegetation:'',
     photos:[], voiceMemos:[], blocks:[],
   };
   site.points.push(point);
@@ -503,6 +507,16 @@ function updateStrikeDip(blockId, part, value){
 let modalContent = null;
 function openModal(html){ modalContent = html; render(); }
 function closeModal(){ modalContent = null; render(); }
+
+function deletePoint(){
+  const site = getSite(); const point = getCurrentPoint();
+  if(!site || !point) return;
+  if(!confirm(`箇所番号「${point.number}」を削除します。よろしいですか？`)) return;
+  if(!confirm('本当に削除しますか？この操作は取り消せません。')) return;
+  site.points = site.points.filter(p => p.id !== point.id);
+  save();
+  goPointList();
+}
 
 function deleteSite(){
   if(!confirm(`現場「${data.currentSite}」の記録をすべて削除します。よろしいですか？`)) return;
@@ -738,30 +752,14 @@ function renderPointDetail(){
 
   const recSection = `
     <div class="section-title">ボイスメモ</div>
-    <div class="card">
+    <div class="card card-tight">
       ${data.ui.recording ? `<div class="rec-indicator"><span class="rec-dot"></span>録音中…</div>` : ''}
-      <button class="btn ${data.ui.recording?'btn-danger':'btn-secondary'} btn-block" data-action="${data.ui.recording?'stopRec':'startRec'}">
+      <button class="btn ${data.ui.recording?'btn-danger':'btn-secondary'} btn-block btn-compact" data-action="${data.ui.recording?'stopRec':'startRec'}">
         ${data.ui.recording ? '■ 録音を止めて保存' : '🎙 録音開始'}
       </button>
       ${point.voiceMemos.length ? point.voiceMemos.map(m => `
         <div class="memo-row"><span class="fn">${escapeHtml(m.filename)}</span><span>${m.durationSec}秒</span></div>
-      `).join('') : `<div class="hint" style="margin-top:8px">録音はまだありません</div>`}
-    </div>`;
-
-  const baseSection = `
-    <div class="section-title">斜面基礎情報</div>
-    <div class="card">
-      <div class="row">
-        <div class="field"><label>勾配（°）</label><input type="number" inputmode="decimal" data-pointfield="gradient" value="${escapeHtml(point.gradient)}"></div>
-        <div class="field"><label>岩盤／土砂</label>
-          <select data-pointfield="groundType">
-            <option value="">選択</option>
-            <option value="岩盤" ${point.groundType==='岩盤'?'selected':''}>岩盤</option>
-            <option value="土砂" ${point.groundType==='土砂'?'selected':''}>土砂</option>
-          </select>
-        </div>
-      </div>
-      <div class="field"><label>植生（概況）</label><input type="text" data-pointfield="vegetation" value="${escapeHtml(point.vegetation)}" placeholder="例：スギ植林、疎"></div>
+      `).join('') : ''}
     </div>`;
 
   const blocksSection = `
@@ -777,23 +775,24 @@ function renderPointDetail(){
       <div style="flex:1"></div>
     </div>
     <div class="content">
-      <div class="card">
+      <div class="card card-tight">
         <div class="row">
-          <div class="field"><label>箇所番号</label><input type="text" data-pointfield="number" value="${escapeHtml(point.number)}"></div>
-          <div class="field"><label>日付</label><input type="date" data-pointfield="date" value="${escapeHtml(point.date)}"></div>
+          <div class="field-compact"><label>箇所番号</label><input class="compact-input" type="text" data-pointfield="number" value="${escapeHtml(point.number)}"></div>
+          <div class="field-compact"><label>日付</label><input class="compact-input" type="date" data-pointfield="date" value="${escapeHtml(point.date)}"></div>
         </div>
       </div>
       ${photoSection}
-      ${baseSection}
       ${recSection}
       ${blocksSection}
+      <div class="divider"></div>
+      <button class="btn btn-danger btn-block" data-action="deletePoint">この箇所を削除</button>
     </div>
   `;
 }
 
 function renderAddBlockModal(){
-  return `<div class="modal-backdrop" data-action="closeModalBackdrop">
-    <div class="modal" onclick="event.stopPropagation()">
+  return `<div class="modal-backdrop">
+    <div class="modal">
       <h3>調査対象を選択</h3>
       <div class="category-grid">
         ${CATEGORIES.map(c => `<button class="btn btn-secondary" data-action="addBlock" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
@@ -846,6 +845,7 @@ function render(){
 /* ============================== イベント委譲 ============================== */
 
 document.getElementById('app').addEventListener('click', (e) => {
+  if(e.target.classList && e.target.classList.contains('modal-backdrop')){ closeModal(); return; }
   const el = e.target.closest('[data-action]');
   if(!el) return;
   const action = el.dataset.action;
@@ -865,9 +865,9 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'stopRec': stopRecording(); break;
     case 'openAddBlock': openModal(renderAddBlockModal()); break;
     case 'closeModal': closeModal(); break;
-    case 'closeModalBackdrop': closeModal(); break;
     case 'addBlock': addBlock(el.dataset.category); break;
     case 'removeBlock': removeBlock(el.dataset.blockid); break;
+    case 'deletePoint': deletePoint(); break;
   }
 });
 
