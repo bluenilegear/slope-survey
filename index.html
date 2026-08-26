@@ -8,19 +8,19 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#F4F1E9">
+<meta name="theme-color" content="#E7F2F7">
 <style>
   :root{
-    --bg:#F4F1E9;
+    --bg:#E7F2F7;
     --surface:#FFFFFF;
-    --surface-2:#ECE7D8;
-    --surface-3:#DFD9C5;
-    --text:#2B2A22;
-    --text-dim:#726F5E;
-    --accent:#B15C22;
-    --accent-2:#4C6E4E;
-    --danger:#AE402F;
-    --border:#DBD5C2;
+    --surface-2:#D7E9F1;
+    --surface-3:#C2DCE8;
+    --text:#223038;
+    --text-dim:#5C7280;
+    --accent:#2E6D9E;
+    --accent-2:#5A8FB8;
+    --danger:#B4463B;
+    --border:#C4DAE6;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   }
@@ -40,7 +40,7 @@
   h1,h2,h3{ font-weight:700; margin:0; }
   .topbar{
     position:sticky; top:0; z-index:10;
-    background:rgba(244,241,233,0.94);
+    background:rgba(231,242,247,0.94);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--border);
     padding:14px 16px;
@@ -119,20 +119,23 @@
     font-size:11px; padding:3px 8px; border-radius:999px;
     background:var(--surface-3); color:var(--text-dim); border:1px solid var(--border);
   }
-  .chip.on{ background:rgba(110,143,107,0.18); color:var(--accent-2); border-color:rgba(110,143,107,0.4); }
-  .chip.warn{ background:rgba(193,72,58,0.15); color:#E08A7D; border-color:rgba(193,72,58,0.35); }
+  .chip.on{ background:rgba(90,143,184,0.18); color:var(--accent); border-color:rgba(90,143,184,0.45); }
+  .chip.warn{ background:rgba(180,70,59,0.15); color:#C0584B; border-color:rgba(180,70,59,0.35); }
   .empty{ text-align:center; color:var(--text-dim); padding:40px 20px; font-size:14px; }
   .bottom-bar{
     position:fixed; left:0; right:0; bottom:0; z-index:20;
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
-    background:linear-gradient(to top, rgba(244,241,233,1) 60%, rgba(244,241,233,0));
+    background:linear-gradient(to top, rgba(231,242,247,1) 60%, rgba(231,242,247,0));
   }
   .bottom-bar .inner{ max-width:640px; margin:0 auto; display:flex; gap:8px; }
   .block-card{ border-left:3px solid var(--accent); }
   .block-card .block-head{
     display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
   }
-  .block-card .block-head .cat{ font-weight:700; font-size:15px; }
+  .block-card .block-head .cat{
+    font-weight:700; font-size:13px; display:inline-block;
+    padding:3px 10px; border-radius:999px;
+  }
   .block-card .block-head .sub{ font-size:12px; color:var(--text-dim); margin-top:2px; }
   .grade-box{
     display:flex; align-items:center; justify-content:space-between;
@@ -226,12 +229,12 @@ function calcGrade(h,s,c){
 }
 
 const CATEGORY_COLORS = {
-  '地質':'#8B6F4E',
-  '地形':'#B9652E',
-  '堆積物':'#B0942F',
-  '水・浸食':'#3E7EA6',
-  '落石源':'#A6483A',
-  '人工構造物':'#6E6F63',
+  '地質':'#9C6B3E',
+  '地形':'#C1652A',
+  '堆積物':'#B9932A',
+  '水・浸食':'#1E8A8A',
+  '落石源':'#8C3A4A',
+  '人工構造物':'#5F6058',
   'ほか':'#7A5C8C',
 };
 function hexToRgba(hex, a){
@@ -245,12 +248,12 @@ const CATEGORY_SCHEMA = {
     fields:[
       {key:'rockType', label:'岩種', type:'select', allowOther:true,
         options:['砂岩','泥岩','混在岩','砂岩優勢互層','泥岩優勢互層','砂岩泥岩互層','シルト岩','礫岩','チャート','緑色岩','石灰岩','破砕帯','地すべり移動体']},
-      {key:'lithofacies', label:'岩相', type:'select', options:['堅岩','風化岩','亀裂質','緩み岩','破砕質','鏡肌'], allowOther:true},
+      {key:'lithofacies', label:'岩相', type:'select', options:['堅岩','弱風化岩','風化岩','亀裂質','緩み岩','破砕質','鏡肌'], allowOther:true},
       {key:'structureType', label:'構造', type:'select', options:['層理面','節理面','断層面','劈開面','すべり面'], allowOther:true},
       {key:'strikeDip', label:'走向傾斜', type:'strikedip'},
-      {key:'hardness', label:'軟硬', type:'select', options:HARDNESS_OPTIONS.map(o=>o.code), grade:true},
-      {key:'coreShape', label:'間隔', type:'select', options:SHAPE_OPTIONS.map(o=>o.code), grade:true},
-      {key:'crackState', label:'風化', type:'select', options:CRACK_OPTIONS.map(o=>o.code), grade:true},
+      {key:'hardness', label:'軟硬', type:'select', options:HARDNESS_OPTIONS.map(o=>o.code), optionMeta:HARDNESS_OPTIONS, grade:true},
+      {key:'coreShape', label:'間隔', type:'select', options:SHAPE_OPTIONS.map(o=>o.code), optionMeta:SHAPE_OPTIONS, grade:true},
+      {key:'crackState', label:'風化', type:'select', options:CRACK_OPTIONS.map(o=>o.code), optionMeta:CRACK_OPTIONS, grade:true},
       {key:'note', label:'備考', type:'textarea'},
     ]
   },
@@ -718,11 +721,12 @@ function renderBlock(block){
   }
 
   const color = CATEGORY_COLORS[block.category] || null;
-  const cardStyle = color ? `style="border-left-color:${color};background:${hexToRgba(color,0.06)}"` : '';
+  const cardStyle = color ? `style="border-left-color:${color};border-left-width:5px;background:${hexToRgba(color,0.07)}"` : '';
+  const catBadgeStyle = color ? `style="background:${color};color:#FFFFFF"` : '';
   return `<div class="card block-card" data-blockid="${block.id}" ${cardStyle}>
     <div class="block-head">
       <div>
-        <div class="cat">${escapeHtml(block.category)}</div>
+        <div class="cat" ${catBadgeStyle}>${escapeHtml(block.category)}</div>
         ${block.subtype ? `<div class="sub">${escapeHtml(block.subtype)}</div>` : ''}
       </div>
       <button class="btn btn-ghost btn-sm" data-action="removeBlock" data-blockid="${block.id}">削除</button>
@@ -805,7 +809,7 @@ function renderPointList(){
               ${uniqueCats.length===0 ? `<span class="chip warn">調査対象未入力</span>` :
                 uniqueCats.map(c=>{
                   const color = CATEGORY_COLORS[c];
-                  const style = color ? `style="background:${hexToRgba(color,0.15)};color:${color};border-color:${hexToRgba(color,0.4)}"` : '';
+                  const style = color ? `style="background:${color};color:#FFFFFF;border-color:${color}"` : '';
                   return `<span class="chip" ${style}>${escapeHtml(c)}</span>`;
                 }).join('')}
             </div>
@@ -882,7 +886,11 @@ function renderAddBlockModal(){
     <div class="modal">
       <h3>調査対象を選択</h3>
       <div class="category-grid">
-        ${CATEGORIES.map(c => `<button class="btn btn-secondary" data-action="addBlock" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+        ${CATEGORIES.map(c => {
+          const color = CATEGORY_COLORS[c];
+          const style = color ? `style="border-left:5px solid ${color};background:${hexToRgba(color,0.10)}"` : '';
+          return `<button class="btn btn-secondary" ${style} data-action="addBlock" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`;
+        }).join('')}
       </div>
       <button class="btn btn-ghost btn-block" style="margin-top:14px" data-action="closeModal">キャンセル</button>
     </div>
