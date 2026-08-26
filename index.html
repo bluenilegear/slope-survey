@@ -225,28 +225,45 @@ function calcGrade(h,s,c){
   return cell[c] || null;
 }
 
+const CATEGORY_COLORS = {
+  '地質':'#8B6F4E',
+  '地形':'#B9652E',
+  '堆積物':'#B0942F',
+  '水・浸食':'#3E7EA6',
+  '落石源':'#A6483A',
+  '人工構造物':'#6E6F63',
+  'ほか':'#7A5C8C',
+};
+function hexToRgba(hex, a){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 const CATEGORY_SCHEMA = {
   '地質':{
     fields:[
-      {key:'rockType', label:'岩種', type:'select', options:['砂岩','泥岩','砂岩優勢互層','泥岩優勢互層','礫岩','チャート','緑色岩','石灰岩'], allowOther:true},
-      {key:'lithofacies', label:'岩相', type:'select', options:['堅岩','風化岩','亀裂質','緩み岩'], allowOther:true},
-      {key:'structureType', label:'構造', type:'select', options:['層理面','節理面','断層面','劈開面'], allowOther:true},
+      {key:'rockType', label:'岩種', type:'select', allowOther:true,
+        options:['砂岩','泥岩','混在岩','砂岩優勢互層','泥岩優勢互層','砂岩泥岩互層','シルト岩','礫岩','チャート','緑色岩','石灰岩','破砕帯','地すべり移動体']},
+      {key:'lithofacies', label:'岩相', type:'select', options:['堅岩','風化岩','亀裂質','緩み岩','破砕質','鏡肌'], allowOther:true},
+      {key:'structureType', label:'構造', type:'select', options:['層理面','節理面','断層面','劈開面','すべり面'], allowOther:true},
       {key:'strikeDip', label:'走向傾斜', type:'strikedip'},
-      {key:'hardness', label:'軟硬（打音）', type:'select', options:HARDNESS_OPTIONS.map(o=>o.code), optionMeta:HARDNESS_OPTIONS, grade:true},
-      {key:'coreShape', label:'割れ目間隔（コア形状）', type:'select', options:SHAPE_OPTIONS.map(o=>o.code), optionMeta:SHAPE_OPTIONS, grade:true},
-      {key:'crackState', label:'風化区分（割れ目状態）', type:'select', options:CRACK_OPTIONS.map(o=>o.code), optionMeta:CRACK_OPTIONS, grade:true},
+      {key:'hardness', label:'軟硬', type:'select', options:HARDNESS_OPTIONS.map(o=>o.code), grade:true},
+      {key:'coreShape', label:'間隔', type:'select', options:SHAPE_OPTIONS.map(o=>o.code), grade:true},
+      {key:'crackState', label:'風化', type:'select', options:CRACK_OPTIONS.map(o=>o.code), grade:true},
+      {key:'note', label:'備考', type:'textarea'},
     ]
   },
   '地形':{
     subtypeField:{key:'landformType', label:'種類', options:['崩壊跡','地すべり','クリープ','遷急線','遷緩線','段差','渓岸浸食','自由']},
     subtypeFields:{
-      '崩壊跡':[ {key:'age', label:'新・古', type:'select', options:['新','古']}, {key:'height', label:'高さ(m)', type:'number'}, {key:'width', label:'幅(m)', type:'number'} ],
-      '地すべり':[ {key:'part', label:'部位', type:'select', options:['頭部','側部','末端部','自由']}, {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']} ],
-      'クリープ':[ {key:'part', label:'部位', type:'select', options:['頭部','側部','末端部','自由']}, {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']} ],
-      '遷急線':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']} ],
-      '遷緩線':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']} ],
-      '段差':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'height', label:'高さ(m)', type:'number'} ],
-      '渓岸浸食':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'height', label:'高さ(m)', type:'number'} ],
+      '崩壊跡':[ {key:'age', label:'新・古', type:'select', options:['新','古']}, {key:'height', label:'高さ(m)', type:'number'}, {key:'width', label:'幅(m)', type:'number'}, {key:'note', label:'備考', type:'textarea'} ],
+      '地すべり':[ {key:'part', label:'部位', type:'select', options:['頭部','側部','末端部','自由']}, {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'note', label:'備考', type:'textarea'} ],
+      'クリープ':[ {key:'part', label:'部位', type:'select', options:['頭部','側部','末端部','自由']}, {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'note', label:'備考', type:'textarea'} ],
+      '遷急線':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'note', label:'備考', type:'textarea'} ],
+      '遷緩線':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'note', label:'備考', type:'textarea'} ],
+      '段差':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'height', label:'高さ(m)', type:'number'}, {key:'note', label:'備考', type:'textarea'} ],
+      '渓岸浸食':[ {key:'clarity', label:'明瞭度', type:'select', options:['明瞭','不明瞭']}, {key:'height', label:'高さ(m)', type:'number'}, {key:'note', label:'備考', type:'textarea'} ],
       '自由':[ {key:'note', label:'内容', type:'textarea'} ],
     }
   },
@@ -255,39 +272,43 @@ const CATEGORY_SCHEMA = {
       {key:'depositType', label:'種類', type:'select', options:['崖錐堆積物','段丘堆積物','渓床堆積物','土石流堆積物'], allowOther:true},
       {key:'thickness', label:'層厚(m)', type:'number'},
       {key:'gravelSize', label:'礫径(cm)', type:'number'},
-      {key:'depositState', label:'堆積状況', type:'select', options:['締まる','ルーズ','浸食'], allowOther:true},
+      {key:'depositState', label:'堆積状況', type:'select', options:['締まる','ルーズ','浸食','堆積'], allowOther:true},
+      {key:'gullyPresence', label:'ガリーの有無', type:'select', options:['有','無']},
       {key:'note', label:'備考', type:'textarea'},
       {key:'vegType', label:'植生：種類', type:'select', options:['スギ','ヒノキ','広葉樹'], allowOther:true},
-      {key:'dbh', label:'植生：胸高直径(cm)', type:'number'},
+      {key:'dbh', label:'植生：胸高直径(cm)', type:'stepselect', step:5, min:0, max:150, unit:'cm'},
     ]
   },
   '水・浸食':{
     fields:[
-      {key:'waterType', label:'種類', type:'select', options:['湧水','表流水','伏流']},
+      {key:'waterType', label:'種類', type:'select', options:['湧水','表流水','伏流','河川']},
       {key:'flow', label:'流量(L/min)', type:'number'},
-      {key:'gully', label:'ガリー', type:'textarea'},
+      {key:'gully', label:'ガリーの有無', type:'select', options:['有','無']},
+      {key:'note', label:'備考', type:'textarea'},
     ]
   },
   '落石源':{
     fields:[
       {key:'rockKind', label:'種類', type:'select', options:['浮石','転石']},
       {key:'grouping', label:'単体／群', type:'select', options:['単体','群']},
-      {key:'sizeH', label:'サイズ：高さ(m)', type:'number', showIf:f=>f.grouping==='単体'},
-      {key:'sizeW', label:'サイズ：幅(m)', type:'number', showIf:f=>f.grouping==='単体'},
-      {key:'sizeD', label:'サイズ：奥行き(m)', type:'number', showIf:f=>f.grouping==='単体'},
-      {key:'maxSizeH', label:'最大サイズ：高さ(m)', type:'number', showIf:f=>f.grouping==='群'},
-      {key:'maxSizeW', label:'最大サイズ：幅(m)', type:'number', showIf:f=>f.grouping==='群'},
-      {key:'maxSizeD', label:'最大サイズ：奥行き(m)', type:'number', showIf:f=>f.grouping==='群'},
-      {key:'distH', label:'分布範囲：高さ(m)', type:'number', showIf:f=>f.grouping==='群'},
-      {key:'distW', label:'分布範囲：幅(m)', type:'number', showIf:f=>f.grouping==='群'},
-      {key:'distD', label:'分布範囲：奥行き(m)', type:'number', showIf:f=>f.grouping==='群'},
-      {key:'stability', label:'安定度', type:'text'},
+      {key:'sizeH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='単体'},
+      {key:'sizeW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='単体'},
+      {key:'sizeD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='単体'},
+      {key:'maxSizeH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
+      {key:'maxSizeW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
+      {key:'maxSizeD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
+      {key:'distH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
+      {key:'distW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
+      {key:'distD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
+      {key:'stability', label:'安定度', type:'select', options:['AA','A','B','C'], optionMeta:[
+        {code:'AA', desc:'非常に不安定'},{code:'A', desc:'不安定'},{code:'B', desc:'やや不安定'},{code:'C', desc:'やや安定'}
+      ]},
       {key:'note', label:'自由記載', type:'textarea'},
     ]
   },
   '人工構造物':{
     fields:[
-      {key:'type', label:'種類', type:'text'},
+      {key:'type', label:'種類', type:'select', options:['落石防護網','落石防護柵','切土のり面','盛土','砂防施設'], allowOther:true},
       {key:'sizeH', label:'サイズ：高さ(m)', type:'number'},
       {key:'sizeW', label:'サイズ：幅(m)', type:'number'},
       {key:'note', label:'自由記載', type:'textarea'},
@@ -322,7 +343,7 @@ function escapeHtml(s){
 const STORAGE_KEY = 'slopeSurveyData_v1';
 
 function defaultData(){
-  return { deviceMode:null, currentSite:null, ui:{ screen:'siteSelect', currentPointId:null, recording:false }, sites:{} };
+  return { deviceMode:null, currentSite:null, ui:{ screen:'siteSelect', currentPointId:null, recording:false, lastSaved:null }, sites:{} };
 }
 function loadData(){
   try{
@@ -336,8 +357,14 @@ function loadData(){
 }
 let data = loadData();
 function save(){
+  data.ui.lastSaved = Date.now();
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
   catch(e){ alert('保存に失敗しました（端末の空き容量を確認してください）: ' + e.message); }
+}
+function lastSavedLabel(){
+  if(!data.ui.lastSaved) return '';
+  const d = new Date(data.ui.lastSaved);
+  return `保存済み ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
 function getSite(){ return data.currentSite ? data.sites[data.currentSite] : null; }
@@ -547,7 +574,7 @@ async function exportJson(){
 
 /* ============================== レンダリング：共通部品 ============================== */
 
-function renderField(scope, field, fieldsObj){
+function renderInputOnly(scope, field, fieldsObj){
   const currentValue = fieldsObj[field.key];
   const bindAttr = `data-field="${field.key}"`;
   const id = `f_${scope}_${field.key}`;
@@ -569,6 +596,8 @@ function renderField(scope, field, fieldsObj){
       inner += `<input type="text" style="margin-top:8px" placeholder="自由記載"
         data-field="${field.key}__other" data-scope="${scope}" value="${escapeHtml(otherValue)}">`;
     }
+  } else if(field.type === 'stepselect'){
+    inner = `<select id="${id}" ${bindAttr} data-scope="${scope}">${stepOptions(currentValue, field.min, field.max, field.step, field.unit)}</select>`;
   } else if(field.type === 'number'){
     inner = `<input type="number" inputmode="decimal" step="0.1" id="${id}" ${bindAttr} data-scope="${scope}" value="${escapeHtml(currentValue||'')}">`;
   } else if(field.type === 'textarea'){
@@ -576,7 +605,18 @@ function renderField(scope, field, fieldsObj){
   } else {
     inner = `<input type="text" id="${id}" ${bindAttr} data-scope="${scope}" value="${escapeHtml(currentValue||'')}">`;
   }
-  return `<div class="field"><label for="${id}">${escapeHtml(field.label)}</label>${inner}</div>`;
+  return inner;
+}
+function renderField(scope, field, fieldsObj){
+  const id = `f_${scope}_${field.key}`;
+  return `<div class="field"><label for="${id}">${escapeHtml(field.label)}</label>${renderInputOnly(scope, field, fieldsObj)}</div>`;
+}
+function renderCompactRow(scope, rowLabel, fields, fieldsObj){
+  const cells = fields.map(f => `<div style="flex:1;min-width:0">
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px">${escapeHtml(f.label)}</div>
+      ${renderInputOnly(scope, f, fieldsObj)}
+    </div>`).join('');
+  return `<div class="field"><label>${escapeHtml(rowLabel)}</label><div class="row" style="gap:6px">${cells}</div></div>`;
 }
 
 function degreeOptions(current){
@@ -584,6 +624,16 @@ function degreeOptions(current){
   for(let i=0;i<=90;i++){
     const v = pad2(i);
     html += `<option value="${v}" ${current===v?'selected':''}>${v}°</option>`;
+  }
+  return html;
+}
+function stepOptions(current, min, max, step, unit){
+  const decimals = step < 1 ? String(step).split('.')[1].length : 0;
+  let html = '<option value="">--</option>';
+  const count = Math.round((max - min) / step);
+  for(let i=0;i<=count;i++){
+    const v = (min + i*step).toFixed(decimals);
+    html += `<option value="${v}" ${current===v?'selected':''}>${v}${unit||''}</option>`;
   }
   return html;
 }
@@ -609,10 +659,37 @@ function renderStrikeDip(block){
   </div>`;
 }
 
+function renderGeologyExtra(block, schema){
+  const f = block.fields;
+  const gradeFields = schema.fields.filter(x => x.grade);
+  let html = renderCompactRow(block.id, '岩級区分（軟硬／間隔／風化）', gradeFields, f);
+  const grade = calcGrade(f.hardness, f.coreShape, f.crackState);
+  html += `<div class="grade-box">
+    <span class="label">岩級（自動判定）</span>
+    <span class="value ${grade?'':'none'}">${grade ? escapeHtml(grade) : '3項目を選ぶと表示されます'}</span>
+  </div>`;
+  html += renderField(block.id, schema.fields.find(x=>x.key==='note'), f);
+  return html;
+}
+
+function renderRockfallExtra(block, schema){
+  const f = block.fields;
+  const byKey = k => schema.fields.find(x => x.key === k);
+  let html = renderCompactRow(block.id, '種類／単体・群', [byKey('rockKind'), byKey('grouping')], f);
+  if(f.grouping === '単体'){
+    html += renderCompactRow(block.id, 'サイズ', [byKey('sizeH'), byKey('sizeW'), byKey('sizeD')], f);
+  } else if(f.grouping === '群'){
+    html += renderCompactRow(block.id, '最大サイズ', [byKey('maxSizeH'), byKey('maxSizeW'), byKey('maxSizeD')], f);
+    html += renderCompactRow(block.id, '分布範囲', [byKey('distH'), byKey('distW'), byKey('distD')], f);
+  }
+  html += renderField(block.id, byKey('stability'), f);
+  html += renderField(block.id, byKey('note'), f);
+  return html;
+}
+
 function renderBlock(block){
   const schema = CATEGORY_SCHEMA[block.category];
   let fieldsHtml = '';
-  let gradeHtml = '';
 
   if(block.category === '地形'){
     const st = schema.subtypeField;
@@ -624,22 +701,25 @@ function renderBlock(block){
         fieldsHtml += renderField(block.id, f, block.fields);
       }
     }
-  } else {
+  } else if(block.category === '地質'){
     for(const f of schema.fields){
-      if(f.showIf && !f.showIf(block.fields)) continue;
+      if(f.grade || f.key === 'note') continue;
       if(f.type === 'strikedip'){ fieldsHtml += renderStrikeDip(block); continue; }
       fieldsHtml += renderField(block.id, f, block.fields);
     }
-    if(block.category === '地質'){
-      const grade = calcGrade(block.fields.hardness, block.fields.coreShape, block.fields.crackState);
-      gradeHtml = `<div class="grade-box">
-        <span class="label">岩級（自動判定）</span>
-        <span class="value ${grade?'':'none'}">${grade ? escapeHtml(grade) : '3項目を選ぶと表示されます'}</span>
-      </div>`;
+    fieldsHtml += renderGeologyExtra(block, schema);
+  } else if(block.category === '落石源'){
+    fieldsHtml += renderRockfallExtra(block, schema);
+  } else {
+    for(const f of schema.fields){
+      if(f.showIf && !f.showIf(block.fields)) continue;
+      fieldsHtml += renderField(block.id, f, block.fields);
     }
   }
 
-  return `<div class="card block-card" data-blockid="${block.id}">
+  const color = CATEGORY_COLORS[block.category] || null;
+  const cardStyle = color ? `style="border-left-color:${color};background:${hexToRgba(color,0.06)}"` : '';
+  return `<div class="card block-card" data-blockid="${block.id}" ${cardStyle}>
     <div class="block-head">
       <div>
         <div class="cat">${escapeHtml(block.category)}</div>
@@ -648,7 +728,6 @@ function renderBlock(block){
       <button class="btn btn-ghost btn-sm" data-action="removeBlock" data-blockid="${block.id}">削除</button>
     </div>
     ${fieldsHtml}
-    ${gradeHtml}
   </div>`;
 }
 
@@ -699,13 +778,16 @@ function renderPointList(){
   const site = getSite();
   if(!site) return renderSiteSelect();
   const items = site.points.slice().sort((a,b)=> a.number.localeCompare(b.number));
+  const modeLabel = data.deviceMode==='photo' ? '📷 写真あり' : '📝 データのみ';
   return `
     <div class="topbar">
       <button class="back" data-action="goSiteSelect">‹</button>
       <div class="stamp"><span class="site">${escapeHtml(data.currentSite)}</span></div>
+      <span class="chip on">${modeLabel}</span>
       <div style="flex:1"></div>
       <button class="btn btn-ghost btn-sm" data-action="goExport">書き出し</button>
     </div>
+    <div style="padding:4px 16px 0;font-size:11px;color:var(--text-dim);text-align:right">${lastSavedLabel()}</div>
     <div class="content">
       <div class="section-title">箇所一覧（${items.length}）</div>
       ${items.length===0 ? `<div class="empty">まだ箇所がありません<br>下のボタンから追加してください</div>` : ''}
@@ -721,7 +803,11 @@ function renderPointList(){
               ${data.deviceMode!=='data' ? `<span class="chip ${photoOk?'on':'warn'}">写真 ${p.photos.length}</span>` : ''}
               ${p.voiceMemos.length ? `<span class="chip on">🎙 ${p.voiceMemos.length}</span>` : ''}
               ${uniqueCats.length===0 ? `<span class="chip warn">調査対象未入力</span>` :
-                uniqueCats.map(c=>`<span class="chip on">${escapeHtml(c)}</span>`).join('')}
+                uniqueCats.map(c=>{
+                  const color = CATEGORY_COLORS[c];
+                  const style = color ? `style="background:${hexToRgba(color,0.15)};color:${color};border-color:${hexToRgba(color,0.4)}"` : '';
+                  return `<span class="chip" ${style}>${escapeHtml(c)}</span>`;
+                }).join('')}
             </div>
           </div>
           <div class="chev">›</div>
@@ -774,6 +860,7 @@ function renderPointDetail(){
       <div class="stamp"><span class="site">${escapeHtml(data.currentSite)}</span><span class="num">${escapeHtml(point.number)}</span></div>
       <div style="flex:1"></div>
     </div>
+    <div style="padding:4px 16px 0;font-size:11px;color:var(--text-dim);text-align:right">${lastSavedLabel()}</div>
     <div class="content">
       <div class="card card-tight">
         <div class="row">
