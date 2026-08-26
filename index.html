@@ -121,7 +121,17 @@
   }
   .chip.on{ background:rgba(90,143,184,0.18); color:var(--accent); border-color:rgba(90,143,184,0.45); }
   .chip.warn{ background:rgba(180,70,59,0.15); color:#C0584B; border-color:rgba(180,70,59,0.35); }
+  .thumb-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:10px; }
+  .thumb{ aspect-ratio:1; border-radius:8px; overflow:hidden; border:1px solid var(--border); background:var(--surface-2); }
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
   .empty{ text-align:center; color:var(--text-dim); padding:40px 20px; font-size:14px; }
+  .lightbox-backdrop{
+    position:fixed; inset:0; background:rgba(10,20,26,0.88); z-index:40;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+  }
+  .lightbox-backdrop img{ max-width:92vw; max-height:78vh; border-radius:10px; }
+  .lightbox-caption{ color:#EAF3F8; font-size:13px; margin-top:12px; font-family:var(--mono); }
+  .lightbox-close{ margin-top:18px; }
   .bottom-bar{
     position:fixed; left:0; right:0; bottom:0; z-index:20;
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
@@ -359,10 +369,29 @@ function loadData(){
   return defaultData();
 }
 let data = loadData();
+function dropOldestThumbnail(){
+  let oldest = null;
+  for(const siteName in data.sites){
+    for(const p of data.sites[siteName].points){
+      for(const ph of (p.photos||[])){
+        if(ph.thumb && (!oldest || ph.at < oldest.at)) oldest = ph;
+      }
+    }
+  }
+  if(oldest){ oldest.thumb = null; return true; }
+  return false;
+}
 function save(){
   data.ui.lastSaved = Date.now();
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
-  catch(e){ alert('保存に失敗しました（端末の空き容量を確認してください）: ' + e.message); }
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return true;
+  }catch(e){
+    // 容量不足の可能性: 一番古いサムネイルから間引いて再試行（記録データそのものは守る）
+    if(dropOldestThumbnail()) return save();
+    alert('保存に失敗しました。端末の空き容量を確認してください。');
+    return false;
+  }
 }
 function lastSavedLabel(){
   if(!data.ui.lastSaved) return '';
@@ -396,6 +425,26 @@ function saveFile(file){
 
 /* ============================== 写真 ============================== */
 
+function makeThumbnail(file, maxDim){
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      w = Math.round(w * scale); h = Math.round(h * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      try{ resolve(canvas.toDataURL('image/jpeg', 0.6)); }
+      catch(e){ resolve(null); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
 document.getElementById('cameraInput').addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
   e.target.value = '';
@@ -407,7 +456,8 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const filename = `${data.currentSite}${point.number}-${pad2(branch)}.${ext}`;
     const renamed = new File([file], filename, { type: file.type || 'image/jpeg' });
-    point.photos.push({ filename, at: nowISO() });
+    const thumb = await makeThumbnail(file, 320);
+    point.photos.push({ filename, at: nowISO(), thumb });
     save();
     render();
     saveFile(renamed);
@@ -537,6 +587,15 @@ function updateStrikeDip(blockId, part, value){
 let modalContent = null;
 function openModal(html){ modalContent = html; render(); }
 function closeModal(){ modalContent = null; render(); }
+function openPhotoLightbox(index){
+  const point = getCurrentPoint(); if(!point) return;
+  const photo = point.photos[index]; if(!photo || !photo.thumb) return;
+  openModal(`<div class="lightbox-backdrop">
+    <img src="${photo.thumb}" alt="${escapeHtml(photo.filename)}">
+    <div class="lightbox-caption">${escapeHtml(photo.filename)}</div>
+    <button class="btn btn-secondary lightbox-close" data-action="closeModal">閉じる</button>
+  </div>`);
+}
 
 function deletePoint(){
   const site = getSite(); const point = getCurrentPoint();
@@ -829,15 +888,19 @@ function renderPointDetail(){
   if(!point) return renderPointList();
   const showPhoto = data.deviceMode !== 'data';
 
+  const photoThumbs = point.photos.filter(p=>p.thumb).map((p,i) => `
+    <div class="thumb" data-action="viewPhoto" data-index="${point.photos.indexOf(p)}">
+      <img src="${p.thumb}" alt="${escapeHtml(p.filename)}">
+    </div>`).join('');
   const photoSection = showPhoto ? `
     <div class="section-title">写真</div>
     <div class="card">
       <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">
         撮影済み：${point.photos.length}枚
-        ${point.photos.length ? '（' + point.photos.map(p=>escapeHtml(p.filename)).join('、') + '）' : ''}
       </div>
+      ${photoThumbs ? `<div class="thumb-grid">${photoThumbs}</div>` : ''}
       <button class="btn btn-secondary btn-block" data-action="camera">📷 写真を撮る</button>
-      <div class="hint" style="margin-top:8px">撮影すると自動でファイルとして保存されます（画面上部にダウンロード完了の印が出ます）。</div>
+      <div class="hint" style="margin-top:8px">撮影すると自動でファイルとして保存されます（画面上部にダウンロード完了の印が出ます）。サムネイルはタップで拡大できます。</div>
     </div>` : '';
 
   const recSection = `
@@ -940,7 +1003,7 @@ function render(){
 /* ============================== イベント委譲 ============================== */
 
 document.getElementById('app').addEventListener('click', (e) => {
-  if(e.target.classList && e.target.classList.contains('modal-backdrop')){ closeModal(); return; }
+  if(e.target.classList && (e.target.classList.contains('modal-backdrop') || e.target.classList.contains('lightbox-backdrop'))){ closeModal(); return; }
   const el = e.target.closest('[data-action]');
   if(!el) return;
   const action = el.dataset.action;
@@ -960,6 +1023,7 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'stopRec': stopRecording(); break;
     case 'openAddBlock': openModal(renderAddBlockModal()); break;
     case 'closeModal': closeModal(); break;
+    case 'viewPhoto': openPhotoLightbox(Number(el.dataset.index)); break;
     case 'addBlock': addBlock(el.dataset.category); break;
     case 'removeBlock': removeBlock(el.dataset.blockid); break;
     case 'deletePoint': deletePoint(); break;
