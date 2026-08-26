@@ -145,13 +145,20 @@
       position:fixed;
       top:50%; right:calc(14px + env(safe-area-inset-right));
       transform:translateY(-50%);
-      width:144px; height:60vh; min-height:260px; max-height:420px;
-      padding:24px 12px;
+      width:132px;
+      height:52vh; height:52svh;
+      min-height:230px;
+      max-height:340px;
+      max-height:min(340px, calc(100svh - 32px));
+      padding:20px 10px;
       z-index:25;
       box-shadow:0 6px 20px rgba(20,40,50,0.28);
     }
-    .shutter-btn .shutter-emoji{ font-size:60px; }
-    .shutter-btn .shutter-label{ writing-mode:vertical-rl; font-size:25px; letter-spacing:0.08em; }
+    /* 中央配置のtranslateYと、押した時の縮小演出(.btn:active)が同じtransformを取り合って
+       位置がズレるのを防ぐため、押下時もtranslateYを保ったまま縮小させる */
+    .shutter-btn:active{ transform:translateY(-50%) scale(0.97); }
+    .shutter-btn .shutter-emoji{ font-size:52px; }
+    .shutter-btn .shutter-label{ writing-mode:vertical-rl; font-size:22px; letter-spacing:0.08em; }
   }
   .bottom-bar{
     position:fixed; left:0; right:0; bottom:0; z-index:20;
