@@ -438,9 +438,25 @@ function nextPointNumber(site){
 
 /* ============================== ファイル共有／保存 ============================== */
 
-function saveFile(file){
-  // 常に「保存(ダウンロード)」一発で確定させる。共有シートを介さないので、
-  // タップし忘れで保存されない、という事態が起きない。
+function isChromeIOS(){
+  return /CriOS/.test(navigator.userAgent);
+}
+async function saveFile(file){
+  // SafariはBlobの<a download>でQuickLookプレビュー画面を挟んで手間が増えるため、
+  // Safari上では共有シート経由（「画像を保存」を1タップ）で保存する。
+  // Chromeはこれまで通りワンタップ不要の自動ダウンロードのままにする。
+  if(!isChromeIOS() && navigator.canShare){
+    let shareable = false;
+    try{ shareable = navigator.canShare({ files:[file] }); }catch(e){ shareable = false; }
+    if(shareable){
+      try{
+        await navigator.share({ files:[file], title:file.name });
+        return true;
+      }catch(e){
+        return false; // キャンセルされた場合はそのまま（無理に別方式で保存しない）
+      }
+    }
+  }
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url; a.download = file.name;
@@ -486,7 +502,7 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
     point.photos.push({ filename, at: nowISO(), thumb });
     save();
     render();
-    saveFile(renamed);
+    await saveFile(renamed);
   }
   render();
 });
@@ -537,7 +553,7 @@ async function onRecordingStop(){
     point.voiceMemos.push({ filename, at: nowISO(), durationSec });
     save();
     render();
-    saveFile(file);
+    await saveFile(file);
   }
   render();
 }
@@ -657,7 +673,7 @@ async function exportJson(){
   const json = JSON.stringify(payload, null, 2);
   const filename = `${data.currentSite}_data_${todayStr()}.json`;
   const file = new File([json], filename, { type:'application/json' });
-  saveFile(file);
+  await saveFile(file);
 }
 
 /* ============================== レンダリング：共通部品 ============================== */
@@ -926,7 +942,12 @@ function renderPointDetail(){
       </div>
       ${photoThumbs ? `<div class="thumb-grid">${photoThumbs}</div>` : ''}
       <button class="btn btn-primary btn-block shutter-btn" data-action="camera"><span class="shutter-emoji">📷</span><span class="shutter-label">撮影する</span></button>
-      <div class="hint" style="margin-top:8px">撮影すると自動でファイルとして保存されます（画面上部にダウンロード完了の印が出ます）。サムネイルはタップで拡大できます。</div>
+      <div class="hint" style="margin-top:8px">
+        ${isChromeIOS()
+          ? '撮影すると自動でファイルとして保存されます（画面上部にダウンロード完了の印が出ます）。'
+          : '撮影すると共有シートが開きます。「画像を保存」をタップして保存してください。'}
+        サムネイルはタップで拡大できます。
+      </div>
     </div>` : '';
 
   const recSection = `
@@ -1004,8 +1025,9 @@ function renderExport(){
       </div>
       <button class="btn btn-primary btn-block" data-action="exportJson">データを書き出す（共有／保存）</button>
       <div class="note-box" style="margin-top:10px">
-        ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに、この端末のFilesアプリ（ダウンロード）へ個別に保存済みです。<br><br>
-        1日の終わりに、Filesアプリを開いて、この現場の写真・音声・JSONファイルをまとめてUSBメモリ（またはもう一方の端末にAirDrop）へコピーしてください。
+        ${isChromeIOS()
+          ? 'ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに、この端末のFilesアプリ（ダウンロード）へ個別に保存済みです。<br><br>1日の終わりに、Filesアプリを開いて、この現場の写真・音声・JSONファイルをまとめてUSBメモリ（またはもう一方の端末にAirDrop）へコピーしてください。'
+          : 'ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに、共有シートの「画像／ファイルを保存」からこの端末に個別に保存済みです。<br><br>このボタンを押すと出る共有シートから、そのままAirDropでもう一方の端末に送る、または「"ファイル"に保存」でUSBメモリへ保存できます。1日の終わりに、写真・音声・JSONをまとめてUSBメモリへコピーしてください。'}
       </div>
       <div class="divider"></div>
       <button class="btn btn-danger btn-block" data-action="deleteSite">この現場のデータを削除</button>
