@@ -77,6 +77,11 @@
   }
   .field .hint{ font-size:12px; color:var(--text-dim); margin-top:4px; }
   .field-compact{ margin:4px 0; }
+  .location-line{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:8px; padding-top:8px; border-top:1px solid var(--border);
+    font-size:12.5px; color:var(--text-dim);
+  }
   .field-compact label{ display:block; font-size:11px; color:var(--text-dim); margin-bottom:2px; }
   .compact-input{ padding:6px 9px !important; font-size:14px !important; }
   input[type=text], input[type=number], input[type=date], select, textarea{
@@ -584,16 +589,62 @@ function createSite(){
   selectSite(name);
 }
 
+function findPointById(id){
+  const site = getSite(); if(!site) return null;
+  return site.points.find(p => p.id === id) || null;
+}
+
+function captureLocationForPoint(pointId){
+  const point = findPointById(pointId);
+  if(!point) return;
+  if(!navigator.geolocation){
+    point.location = { status:'unsupported' };
+    save();
+    if(data.ui.currentPointId === pointId) render();
+    return;
+  }
+  point.location = { status:'pending' };
+  save();
+  if(data.ui.currentPointId === pointId) render();
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const p = findPointById(pointId); if(!p) return;
+      p.location = {
+        status:'ok',
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        at: nowISO(),
+      };
+      save();
+      if(data.ui.currentPointId === pointId) render();
+    },
+    (err) => {
+      const p = findPointById(pointId); if(!p) return;
+      p.location = { status:'error', code: err.code };
+      save();
+      if(data.ui.currentPointId === pointId) render();
+    },
+    { enableHighAccuracy:true, timeout:20000, maximumAge:0 }
+  );
+}
+function retryLocation(){
+  const point = getCurrentPoint(); if(!point) return;
+  captureLocationForPoint(point.id);
+}
+
 function addPoint(){
   const site = getSite(); if(!site) return;
   const number = nextPointNumber(site);
   const point = {
     id: uid(), number, date: todayISODate(),
     photos:[], voiceMemos:[], blocks:[],
+    location: { status:'pending' },
   };
   site.points.push(point);
   save();
   openPoint(point.id);
+  captureLocationForPoint(point.id);
 }
 
 function updatePointField(key, value){
@@ -932,6 +983,23 @@ function renderPointList(){
   `;
 }
 
+function renderLocationLine(point){
+  const loc = point.location || { status:'unsupported' };
+  let text = '';
+  if(loc.status === 'ok'){
+    text = `📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}（誤差±${Math.round(loc.accuracy)}m）`;
+  } else if(loc.status === 'pending'){
+    text = '📍 位置情報を取得中…';
+  } else if(loc.status === 'error'){
+    text = '📍 取得できませんでした';
+  } else {
+    text = '📍 この端末では使えません';
+  }
+  return `<div class="location-line">
+    <span>${escapeHtml(text)}</span>
+    <button class="btn btn-ghost btn-sm" data-action="retryLocation">再取得</button>
+  </div>`;
+}
 function renderPointDetail(){
   const point = getCurrentPoint();
   if(!point) return renderPointList();
@@ -988,6 +1056,7 @@ function renderPointDetail(){
           <div class="field-compact"><label>箇所番号</label><input class="compact-input" type="text" data-pointfield="number" value="${escapeHtml(point.number)}"></div>
           <div class="field-compact"><label>日付</label><input class="compact-input" type="date" data-pointfield="date" value="${escapeHtml(point.date)}"></div>
         </div>
+        ${renderLocationLine(point)}
       </div>
       ${photoSection}
       ${recSection}
@@ -1089,6 +1158,7 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'addBlock': addBlock(el.dataset.category); break;
     case 'removeBlock': removeBlock(el.dataset.blockid); break;
     case 'deletePoint': deletePoint(); break;
+    case 'retryLocation': retryLocation(); break;
   }
 });
 
