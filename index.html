@@ -132,6 +132,27 @@
   .lightbox-backdrop img{ max-width:92vw; max-height:78vh; border-radius:10px; }
   .lightbox-caption{ color:#EAF3F8; font-size:13px; margin-top:12px; font-family:var(--mono); }
   .lightbox-close{ margin-top:18px; }
+
+  /* 撮影ボタン：普段はでかいブロックボタン、横向きでは右端固定の縦長シャッターに */
+  .shutter-btn{
+    flex-direction:column; gap:6px;
+    padding:26px 16px; font-size:19px; font-weight:700;
+    border-radius:18px;
+  }
+  .shutter-btn .shutter-emoji{ font-size:34px; line-height:1; }
+  @media (orientation: landscape){
+    .shutter-btn{
+      position:fixed;
+      top:50%; right:calc(14px + env(safe-area-inset-right));
+      transform:translateY(-50%);
+      width:96px; height:46vh; min-height:180px; max-height:320px;
+      padding:16px 8px;
+      z-index:25;
+      box-shadow:0 6px 20px rgba(20,40,50,0.28);
+    }
+    .shutter-btn .shutter-emoji{ font-size:40px; }
+    .shutter-btn .shutter-label{ writing-mode:vertical-rl; font-size:17px; letter-spacing:0.08em; }
+  }
   .bottom-bar{
     position:fixed; left:0; right:0; bottom:0; z-index:20;
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
@@ -899,7 +920,7 @@ function renderPointDetail(){
         撮影済み：${point.photos.length}枚
       </div>
       ${photoThumbs ? `<div class="thumb-grid">${photoThumbs}</div>` : ''}
-      <button class="btn btn-secondary btn-block" data-action="camera">📷 写真を撮る</button>
+      <button class="btn btn-primary btn-block shutter-btn" data-action="camera"><span class="shutter-emoji">📷</span><span class="shutter-label">撮影する</span></button>
       <div class="hint" style="margin-top:8px">撮影すると自動でファイルとして保存されます（画面上部にダウンロード完了の印が出ます）。サムネイルはタップで拡大できます。</div>
     </div>` : '';
 
