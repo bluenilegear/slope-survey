@@ -3,7 +3,7 @@
   "short_name": "斜面調査",
   "start_url": "./index.html",
   "scope": "./",
-  "display": "standalone",
+  "display": "browser",
   "orientation": "any",
   "background_color": "#E7F2F7",
   "theme_color": "#E7F2F7",
