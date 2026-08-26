@@ -210,6 +210,13 @@
   .memo-row:first-child{ border-top:none; }
   .memo-row .fn{ font-family:var(--mono); font-size:12px; color:var(--text-dim); }
   .note-box{ font-size:13px; color:var(--text-dim); line-height:1.6; background:var(--surface-2); border-radius:10px; padding:12px; }
+  .standalone-warning{
+    position:sticky; top:0; z-index:15;
+    background:#F6E4B8; color:#5A3E0A;
+    font-size:12.5px; line-height:1.6;
+    padding:10px 16px;
+    border-bottom:1px solid #D9B96A;
+  }
   .divider{ height:1px; background:var(--border); margin:16px 0; }
   a{ color:var(--accent); }
 </style>
@@ -1037,6 +1044,13 @@ function renderExport(){
 
 /* ============================== メインレンダー ============================== */
 
+function renderStandaloneWarning(){
+  if(window.navigator.standalone !== true) return '';
+  return `<div class="standalone-warning">
+    ⚠️ 「アプリとして」起動しています。この状態だと写真や音声の保存がうまく動かないことがあります。
+    <b>ホーム画面のこのアイコンを削除</b>し、Safariで直接このURLを開き直してください（開き直したページから、あらためて「ホーム画面に追加」をすれば直ります）。
+  </div>`;
+}
 function render(){
   let html;
   switch(data.ui.screen){
@@ -1045,7 +1059,7 @@ function render(){
     case 'export': html = renderExport(); break;
     default: html = renderSiteSelect();
   }
-  document.getElementById('app').innerHTML = html + (modalContent || '');
+  document.getElementById('app').innerHTML = renderStandaloneWarning() + html + (modalContent || '');
 }
 
 /* ============================== イベント委譲 ============================== */
