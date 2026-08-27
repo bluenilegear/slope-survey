@@ -715,6 +715,58 @@ function deleteSite(){
   goSiteSelect();
 }
 
+function siteHasSavedFiles(site){
+  return site.points.some(p => p.photos.length > 0 || p.voiceMemos.length > 0);
+}
+
+function openRenameSite(){
+  const site = getSite();
+  if(!site) return;
+  if(siteHasSavedFiles(site)){
+    alert('すでに写真または音声を保存した箇所があるため、現場名は変更できません。写真・音声のファイル名には保存した時点の現場名がそのまま入っているため、後から名前を変えると同じ現場の中でファイル名がバラバラになってしまいます。\n\n名前を直したい場合は、お手数ですが新しい現場を作り直してください。');
+    return;
+  }
+  openModal(renderRenameSiteModal());
+}
+
+function renderRenameSiteModal(){
+  const current = data.currentSite || '';
+  return `<div class="modal-backdrop">
+    <div class="modal">
+      <h3>現場名を変更</h3>
+      <div class="field">
+        <label>新しい現場名</label>
+        <input type="text" id="renameSiteInput" value="${escapeHtml(current)}">
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:10px" data-action="confirmRenameSite">変更する</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="closeModal">キャンセル</button>
+    </div>
+  </div>`;
+}
+
+function confirmRenameSite(){
+  const input = document.getElementById('renameSiteInput');
+  const oldName = data.currentSite;
+  const site = data.sites[oldName];
+  if(!oldName || !site){ closeModal(); return; }
+  if(siteHasSavedFiles(site)){
+    // 開いた後に別端末側の保存が反映された等、念のための二重チェック
+    closeModal();
+    alert('すでに写真または音声が保存されているため、現場名は変更できません。');
+    return;
+  }
+  const newName = (input.value || '').trim();
+  if(!newName){ alert('現場名を入力してください。'); return; }
+  if(newName === oldName){ closeModal(); return; }
+  if(data.sites[newName]){ alert('その現場名はすでに使われています。別の名前にしてください。'); return; }
+  data.sites[newName] = site;
+  delete data.sites[oldName];
+  data.currentSite = newName;
+  modalContent = null;
+  save();
+  render();
+}
+
 /* ============================== 書き出し ============================== */
 
 function buildExportPayload(){
@@ -1106,6 +1158,9 @@ function renderExport(){
           : 'ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに、共有シートの「画像／ファイルを保存」からこの端末に個別に保存済みです。<br><br>このボタンを押すと出る共有シートから、そのままAirDropでもう一方の端末に送る、または「"ファイル"に保存」でUSBメモリへ保存できます。1日の終わりに、写真・音声・JSONをまとめてUSBメモリへコピーしてください。'}
       </div>
       <div class="divider"></div>
+      <button class="btn btn-secondary btn-block" data-action="openRenameSite">現場名を変更</button>
+      <div class="note-box" style="margin-top:8px;font-size:12px">写真・音声を1件でも保存した現場は、名前を変更できません（ファイル名に現場名が入っているため）。</div>
+      <div class="divider"></div>
       <button class="btn btn-danger btn-block" data-action="deleteSite">この現場のデータを削除</button>
     </div>
   `;
@@ -1149,6 +1204,8 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'goExport': goExport(); break;
     case 'exportJson': exportJson(); break;
     case 'deleteSite': deleteSite(); break;
+    case 'openRenameSite': openRenameSite(); break;
+    case 'confirmRenameSite': confirmRenameSite(); break;
     case 'camera': triggerCamera(); break;
     case 'startRec': startRecording(); break;
     case 'stopRec': stopRecording(); break;
