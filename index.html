@@ -401,7 +401,7 @@ function escapeHtml(s){
 const STORAGE_KEY = 'slopeSurveyData_v1';
 
 function defaultData(){
-  return { deviceMode:null, currentSite:null, ui:{ screen:'siteSelect', currentPointId:null, recording:false, lastSaved:null }, sites:{} };
+  return { deviceMode:null, currentSite:null, hasExported:false, ui:{ screen:'siteSelect', currentPointId:null, recording:false, lastSaved:null }, sites:{} };
 }
 function loadData(){
   try{
@@ -452,9 +452,11 @@ function getCurrentPoint(){
 }
 function nextPointNumber(site){
   const step = site.numberStep === 1 ? 1 : -1; // 未設定なら下り(-1)がデフォルト
-  const points = site.points || [];
-  if(points.length === 0) return ''; // 最初の1件は手入力してもらう
-  const prev = points[points.length - 1].number;
+  let prev = site.lastNumber;
+  if(!prev && site.points && site.points.length > 0){
+    prev = site.points[site.points.length - 1].number; // 念のためのフォールバック
+  }
+  if(!prev) return ''; // まだ番号を入力したことがなければ手入力してもらう
   const m = String(prev).match(/^(\D*)(\d+)(\D*)$/);
   if(!m) return prev; // 数字が含まれない番号は自動採番できないのでそのまま返す
   const [, prefix, digits, suffix] = m;
@@ -671,6 +673,7 @@ function addPoint(){
     location: { status:'pending' },
   };
   site.points.push(point);
+  if(number) site.lastNumber = number; // 自動採番した番号も次回の基準として覚えておく
   save();
   openPoint(point.id);
   captureLocationForPoint(point.id);
@@ -678,7 +681,12 @@ function addPoint(){
 
 function updatePointField(key, value){
   const point = getCurrentPoint(); if(!point) return;
-  point[key] = value; save();
+  point[key] = value;
+  if(key === 'number'){
+    const site = getSite();
+    if(site) site.lastNumber = value; // 「直前に自分が入力した番号」を次の採番の基準にする
+  }
+  save();
 }
 
 function addBlock(category){
@@ -761,6 +769,9 @@ async function exportJson(){
   const filename = `${data.currentSite}_data_${todayStr()}.json`;
   const file = new File([json], filename, { type:'application/json' });
   await saveFile(file);
+  data.hasExported = true;
+  save();
+  render();
 }
 
 /* ============================== レンダリング：共通部品 ============================== */
@@ -981,6 +992,9 @@ function renderPointList(){
     </div>
     <div style="padding:4px 16px 0;font-size:11px;color:var(--text-dim);text-align:right">${lastSavedLabel()}</div>
     <div class="content">
+      ${(!data.hasExported && items.length >= 3) ? `<div class="standalone-warning" style="position:static;border-radius:10px;margin-bottom:10px">
+        ⚠️ まだ一度も「書き出し」をしていません。端末の紛失やトラブルに備えて、こまめに書き出しておくことを強くおすすめします（<b>この現場のデータを削除</b>ボタンとは別に、必ず書き出しを）。
+      </div>` : ''}
       <div class="section-title">箇所一覧（${items.length}）</div>
       ${site.points.length > 0 ? `<div class="numstep-row">
         <span>次の番号候補：<b>${escapeHtml(nextPointNumber(site) || '－')}</b></span>
