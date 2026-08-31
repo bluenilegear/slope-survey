@@ -77,6 +77,13 @@
   }
   .field .hint{ font-size:12px; color:var(--text-dim); margin-top:4px; }
   .field-compact{ margin:4px 0; }
+  .numstep-row{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12.5px; color:var(--text-dim); margin-bottom:10px;
+  }
+  .numstep-toggle{ display:flex; gap:4px; }
+  .numstep-toggle .btn{ padding:5px 10px; font-size:12px; }
+  .numstep-toggle .active-step{ background:var(--accent); color:#FFFFFF; }
   .location-line{
     display:flex; align-items:center; justify-content:space-between;
     margin-top:8px; padding-top:8px; border-top:1px solid var(--border);
@@ -444,8 +451,22 @@ function getCurrentPoint(){
   return site.points.find(p => p.id === data.ui.currentPointId) || null;
 }
 function nextPointNumber(site){
-  site.pointSeq = (site.pointSeq || 0) + 1;
-  return pad2(site.pointSeq);
+  const step = site.numberStep === 1 ? 1 : -1; // 未設定なら下り(-1)がデフォルト
+  const points = site.points || [];
+  if(points.length === 0) return ''; // 最初の1件は手入力してもらう
+  const prev = points[points.length - 1].number;
+  const m = String(prev).match(/^(\D*)(\d+)(\D*)$/);
+  if(!m) return prev; // 数字が含まれない番号は自動採番できないのでそのまま返す
+  const [, prefix, digits, suffix] = m;
+  const width = digits.length;
+  const next = parseInt(digits, 10) + step;
+  if(next < 0) return prev;
+  return prefix + String(next).padStart(width, '0') + suffix;
+}
+function setNumberStep(site, step){
+  site.numberStep = step;
+  save();
+  render();
 }
 
 /* ============================== ファイル共有／保存 ============================== */
@@ -504,19 +525,27 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
   e.target.value = '';
   const point = getCurrentPoint();
   if(!point || files.length === 0) return;
-  for(const file of files){
-    point.photos = point.photos || [];
-    const branch = point.photos.length + 1;
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const filename = `${data.currentSite}${point.number}-${pad2(branch)}.${ext}`;
-    const renamed = new File([file], filename, { type: file.type || 'image/jpeg' });
-    const thumb = await makeThumbnail(file, 320);
-    point.photos.push({ filename, at: nowISO(), thumb });
-    save();
+  try{
+    for(const file of files){
+      point.photos = point.photos || [];
+      const branch = point.photos.length + 1;
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const filename = `${data.currentSite}${point.number}-${pad2(branch)}.${ext}`;
+      const renamed = new File([file], filename, { type: file.type || 'image/jpeg' });
+      const thumb = await makeThumbnail(file, 320);
+      point.photos.push({ filename, at: nowISO(), thumb });
+      save();
+      // ここで一度render()すると、直後に開く共有シート(navigator.share)と
+      // ボタンの再生成タイミングが重なり、次のタップが反応しなくなることがあるため、
+      // 保存が完全に終わるまでは再描画しない。
+      await saveFile(renamed);
+    }
+  }catch(err){
+    console.warn('photo save error', err);
+  }finally{
+    // 成功・失敗にかかわらず必ず一度だけ再描画し、シャッターボタンを確実に押せる状態に戻す
     render();
-    await saveFile(renamed);
   }
-  render();
 });
 function triggerCamera(){ document.getElementById('cameraInput').click(); }
 
@@ -713,58 +742,6 @@ function deleteSite(){
   delete data.sites[data.currentSite];
   data.currentSite = null;
   goSiteSelect();
-}
-
-function siteHasSavedFiles(site){
-  return site.points.some(p => p.photos.length > 0 || p.voiceMemos.length > 0);
-}
-
-function openRenameSite(){
-  const site = getSite();
-  if(!site) return;
-  if(siteHasSavedFiles(site)){
-    alert('すでに写真または音声を保存した箇所があるため、現場名は変更できません。写真・音声のファイル名には保存した時点の現場名がそのまま入っているため、後から名前を変えると同じ現場の中でファイル名がバラバラになってしまいます。\n\n名前を直したい場合は、お手数ですが新しい現場を作り直してください。');
-    return;
-  }
-  openModal(renderRenameSiteModal());
-}
-
-function renderRenameSiteModal(){
-  const current = data.currentSite || '';
-  return `<div class="modal-backdrop">
-    <div class="modal">
-      <h3>現場名を変更</h3>
-      <div class="field">
-        <label>新しい現場名</label>
-        <input type="text" id="renameSiteInput" value="${escapeHtml(current)}">
-      </div>
-      <button class="btn btn-primary btn-block" style="margin-top:10px" data-action="confirmRenameSite">変更する</button>
-      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="closeModal">キャンセル</button>
-    </div>
-  </div>`;
-}
-
-function confirmRenameSite(){
-  const input = document.getElementById('renameSiteInput');
-  const oldName = data.currentSite;
-  const site = data.sites[oldName];
-  if(!oldName || !site){ closeModal(); return; }
-  if(siteHasSavedFiles(site)){
-    // 開いた後に別端末側の保存が反映された等、念のための二重チェック
-    closeModal();
-    alert('すでに写真または音声が保存されているため、現場名は変更できません。');
-    return;
-  }
-  const newName = (input.value || '').trim();
-  if(!newName){ alert('現場名を入力してください。'); return; }
-  if(newName === oldName){ closeModal(); return; }
-  if(data.sites[newName]){ alert('その現場名はすでに使われています。別の名前にしてください。'); return; }
-  data.sites[newName] = site;
-  delete data.sites[oldName];
-  data.currentSite = newName;
-  modalContent = null;
-  save();
-  render();
 }
 
 /* ============================== 書き出し ============================== */
@@ -1005,7 +982,15 @@ function renderPointList(){
     <div style="padding:4px 16px 0;font-size:11px;color:var(--text-dim);text-align:right">${lastSavedLabel()}</div>
     <div class="content">
       <div class="section-title">箇所一覧（${items.length}）</div>
-      ${items.length===0 ? `<div class="empty">まだ箇所がありません<br>下のボタンから追加してください</div>` : ''}
+      ${site.points.length > 0 ? `<div class="numstep-row">
+        <span>次の番号候補：<b>${escapeHtml(nextPointNumber(site) || '－')}</b></span>
+        <span class="numstep-toggle">
+          <button class="btn btn-ghost btn-sm ${(site.numberStep===1)?'active-step':''}" data-action="setNumberStep" data-step="1">上り +1</button>
+          <button class="btn btn-ghost btn-sm ${(site.numberStep!==1)?'active-step':''}" data-action="setNumberStep" data-step="-1">下り -1</button>
+        </span>
+      </div>` : ''}
+      <button class="btn btn-primary btn-block" data-action="addPoint" style="margin-bottom:16px">＋ 新しい箇所を追加</button>
+      ${items.length===0 ? `<div class="empty">まだ箇所がありません<br>上のボタンから追加してください</div>` : ''}
       ${items.map(p => {
         const cats = p.blocks.map(b=>b.category);
         const uniqueCats = [...new Set(cats)];
@@ -1029,9 +1014,6 @@ function renderPointList(){
         </div>`;
       }).join('')}
     </div>
-    <div class="bottom-bar"><div class="inner">
-      <button class="btn btn-primary" data-action="addPoint">＋ 新しい箇所を追加</button>
-    </div></div>
   `;
 }
 
@@ -1158,9 +1140,6 @@ function renderExport(){
           : 'ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに、共有シートの「画像／ファイルを保存」からこの端末に個別に保存済みです。<br><br>このボタンを押すと出る共有シートから、そのままAirDropでもう一方の端末に送る、または「"ファイル"に保存」でUSBメモリへ保存できます。1日の終わりに、写真・音声・JSONをまとめてUSBメモリへコピーしてください。'}
       </div>
       <div class="divider"></div>
-      <button class="btn btn-secondary btn-block" data-action="openRenameSite">現場名を変更</button>
-      <div class="note-box" style="margin-top:8px;font-size:12px">写真・音声を1件でも保存した現場は、名前を変更できません（ファイル名に現場名が入っているため）。</div>
-      <div class="divider"></div>
       <button class="btn btn-danger btn-block" data-action="deleteSite">この現場のデータを削除</button>
     </div>
   `;
@@ -1204,8 +1183,6 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'goExport': goExport(); break;
     case 'exportJson': exportJson(); break;
     case 'deleteSite': deleteSite(); break;
-    case 'openRenameSite': openRenameSite(); break;
-    case 'confirmRenameSite': confirmRenameSite(); break;
     case 'camera': triggerCamera(); break;
     case 'startRec': startRecording(); break;
     case 'stopRec': stopRecording(); break;
@@ -1216,6 +1193,7 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'removeBlock': removeBlock(el.dataset.blockid); break;
     case 'deletePoint': deletePoint(); break;
     case 'retryLocation': retryLocation(); break;
+    case 'setNumberStep': setNumberStep(getSite(), Number(el.dataset.step)); break;
   }
 });
 
