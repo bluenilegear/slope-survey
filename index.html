@@ -502,6 +502,17 @@ async function saveFile(file){
 
 /* ============================== 写真 ============================== */
 
+function nudgeViewport(){
+  // iOS 26の既知の不具合対策：カメラなどフルスクリーンの標準UIが閉じた後、
+  // position:fixed要素の当たり判定が見た目とズレたままになることがあるため、
+  // ごく小さくスクロールしてレイアウトを強制的に再計算させる。
+  window.scrollTo(0, 1);
+  requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
+  });
+}
+
 function makeThumbnail(file, maxDim){
   return new Promise((resolve) => {
     const img = new Image();
@@ -547,6 +558,7 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
   }finally{
     // 成功・失敗にかかわらず必ず一度だけ再描画し、シャッターボタンを確実に押せる状態に戻す
     render();
+    nudgeViewport();
   }
 });
 function triggerCamera(){ document.getElementById('cameraInput').click(); }
@@ -595,10 +607,10 @@ async function onRecordingStop(){
     const durationSec = Math.max(1, Math.round((Date.now() - recStart)/1000));
     point.voiceMemos.push({ filename, at: nowISO(), durationSec });
     save();
-    render();
     await saveFile(file);
   }
   render();
+  nudgeViewport();
 }
 
 /* ============================== ナビゲーション ============================== */
