@@ -236,6 +236,7 @@
 <body>
 <div id="app"></div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="galleryInput" accept="image/*" multiple style="display:none">
 <script>
 'use strict';
 
@@ -533,9 +534,8 @@ function makeThumbnail(file, maxDim){
   });
 }
 
-document.getElementById('cameraInput').addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';
+async function handlePhotoFiles(files, inputEl){
+  if(inputEl) inputEl.value = '';
   const point = getCurrentPoint();
   if(!point || files.length === 0) return;
   try{
@@ -560,8 +560,36 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
     render();
     nudgeViewport();
   }
+}
+
+document.getElementById('cameraInput').addEventListener('change', async (e) => {
+  await handlePhotoFiles(Array.from(e.target.files || []), e.target);
 });
-function triggerCamera(){ document.getElementById('cameraInput').click(); }
+document.getElementById('galleryInput').addEventListener('change', async (e) => {
+  await handlePhotoFiles(Array.from(e.target.files || []), e.target);
+});
+
+function triggerCamera(){
+  // iOSでcapture="environment"のchangeイベントが発火しないケースの対策：
+  // inputを再生成してからclickする
+  const old = document.getElementById('cameraInput');
+  const fresh = old.cloneNode(false);
+  old.parentNode.replaceChild(fresh, old);
+  fresh.addEventListener('change', async (e) => {
+    await handlePhotoFiles(Array.from(e.target.files || []), e.target);
+  });
+  fresh.click();
+}
+function triggerGallery(){
+  // iOSでchangeイベントが発火しないケースの対策：inputを再生成してからclickする
+  const old = document.getElementById('galleryInput');
+  const fresh = old.cloneNode(false);
+  old.parentNode.replaceChild(fresh, old);
+  fresh.addEventListener('change', async (e) => {
+    await handlePhotoFiles(Array.from(e.target.files || []), e.target);
+  });
+  fresh.click();
+}
 
 /* ============================== ボイスメモ ============================== */
 
@@ -1076,11 +1104,14 @@ function renderPointDetail(){
         撮影済み：${point.photos.length}枚
       </div>
       ${photoThumbs ? `<div class="thumb-grid">${photoThumbs}</div>` : ''}
-      <button class="btn btn-primary btn-block shutter-btn" data-action="camera"><span class="shutter-emoji">📷</span><span class="shutter-label">撮影する</span></button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-block shutter-btn" data-action="camera" style="flex:1"><span class="shutter-emoji">📷</span><span class="shutter-label">撮影する</span></button>
+        <button class="btn btn-secondary shutter-btn" data-action="gallery" style="flex:1"><span class="shutter-emoji">🖼️</span><span class="shutter-label">ライブラリから</span></button>
+      </div>
       <div class="hint" style="margin-top:8px">
         ${isChromeIOS()
-          ? '撮影すると自動でファイルとして保存されます（画面上部にダウンロード完了の印が出ます）。'
-          : '撮影すると共有シートが開きます。「画像を保存」をタップして保存してください。'}
+          ? '撮影またはライブラリ選択後、自動でファイル保存されます。'
+          : '撮影またはライブラリ選択後、共有シートが開きます。「画像を保存」をタップして保存してください。'}
         サムネイルはタップで拡大できます。
       </div>
     </div>` : '';
@@ -1210,6 +1241,7 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'exportJson': exportJson(); break;
     case 'deleteSite': deleteSite(); break;
     case 'camera': triggerCamera(); break;
+    case 'gallery': triggerGallery(); break;
     case 'startRec': startRecording(); break;
     case 'stopRec': stopRecording(); break;
     case 'openAddBlock': openModal(renderAddBlockModal()); break;
