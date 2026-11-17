@@ -643,16 +643,32 @@ function stopRecording(){
     srRecognition = null;
   }
   const text = (srFinalText + srInterimText).trim();
+  srFinalText = '';
+  srInterimText = '';
+  // 編集・確認画面へ（テキストがあれば）
+  if(text){
+    data.ui.srDraft = text;
+  }
+  render();
+  nudgeViewport();
+}
+
+function saveSrDraft(){
+  const textarea = document.getElementById('sr-draft-textarea');
+  const text = textarea ? textarea.value.trim() : (data.ui.srDraft||'').trim();
   const point = getCurrentPoint();
   if(point && text){
     point.voiceMemos = point.voiceMemos || [];
     point.voiceMemos.push({ text, at: nowISO() });
     save();
   }
-  srFinalText = '';
-  srInterimText = '';
+  data.ui.srDraft = null;
   render();
-  nudgeViewport();
+}
+
+function discardSrDraft(){
+  data.ui.srDraft = null;
+  render();
 }
 
 // 後方互換：古いデータのaudio memoも表示できるよう残す
@@ -1140,17 +1156,24 @@ function renderPointDetail(){
       ${data.ui.recording ? `
         <div class="rec-indicator"><span class="rec-dot"></span>話しかけてください…</div>
         <div id="sr-interim" style="font-size:14px;color:var(--fg);min-height:2em;margin:8px 0;line-height:1.6;word-break:break-all">${escapeHtml(srFinalText + srInterimText)}</div>
-      ` : ''}
-      <button class="btn ${data.ui.recording?'btn-danger':'btn-secondary'} btn-block btn-compact" data-action="${data.ui.recording?'stopRec':'startRec'}">
-        ${data.ui.recording ? '■ 止めて保存' : '🎙 話して記録'}
-      </button>
-      ${!isSpeechSupported() ? `<div class="hint" style="margin-top:6px">⚠ このブラウザは音声認識未対応です</div>` : ''}
-      ${point.voiceMemos.length ? point.voiceMemos.map((m,i) => `
+        <button class="btn btn-danger btn-block btn-compact" data-action="stopRec">■ 止めて確認</button>
+      ` : data.ui.srDraft != null ? `
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px">内容を確認・修正してから保存してください</div>
+        <textarea id="sr-draft-textarea" style="width:100%;box-sizing:border-box;min-height:80px;font-size:14px;line-height:1.6;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);resize:vertical">${escapeHtml(data.ui.srDraft)}</textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-primary" data-action="saveSrDraft" style="flex:1">保存</button>
+          <button class="btn btn-ghost" data-action="discardSrDraft" style="flex:1">破棄</button>
+        </div>
+      ` : `
+        <button class="btn btn-secondary btn-block btn-compact" data-action="startRec">🎙 話して記録</button>
+        ${!isSpeechSupported() ? `<div class="hint" style="margin-top:6px">⚠ このブラウザは音声認識未対応です</div>` : ''}
+      `}
+      ${point.voiceMemos.length ? `<div style="margin-top:10px">` + point.voiceMemos.map((m,i) => `
         <div class="memo-row">
           <span class="fn">${m.text ? escapeHtml(m.text) : escapeHtml(m.filename||'')}</span>
           <button class="btn btn-ghost btn-sm" data-action="deleteMemo" data-index="${i}" style="flex-shrink:0">削除</button>
         </div>
-      `).join('') : ''}
+      `).join('') + `</div>` : ''}
     </div>`;
 
   const blocksSection = `
@@ -1274,6 +1297,8 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'removeBlock': removeBlock(el.dataset.blockid); break;
     case 'deletePoint': deletePoint(); break;
     case 'deleteMemo': deleteMemo(Number(el.dataset.index)); break;
+    case 'saveSrDraft': saveSrDraft(); break;
+    case 'discardSrDraft': discardSrDraft(); break;
     case 'retryLocation': retryLocation(); break;
     case 'setNumberStep': setNumberStep(getSite(), Number(el.dataset.step)); break;
   }
