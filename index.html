@@ -478,21 +478,8 @@ function isChromeIOS(){
   return /CriOS/.test(navigator.userAgent);
 }
 async function saveFile(file){
-  // SafariはBlobの<a download>でQuickLookプレビュー画面を挟んで手間が増えるため、
-  // Safari上では共有シート経由（「画像を保存」を1タップ）で保存する。
-  // Chromeはこれまで通りワンタップ不要の自動ダウンロードのままにする。
-  if(!isChromeIOS() && navigator.canShare){
-    let shareable = false;
-    try{ shareable = navigator.canShare({ files:[file] }); }catch(e){ shareable = false; }
-    if(shareable){
-      try{
-        await navigator.share({ files:[file], title:file.name });
-        return true;
-      }catch(e){
-        return false; // キャンセルされた場合はそのまま（無理に別方式で保存しない）
-      }
-    }
-  }
+  // <a download> によるダウンロード確認ダイアログ方式で保存する。
+  // iOSではSafari・Chromeともに「ダウンロード」タップ1回で保存できる。
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url; a.download = file.name;
@@ -548,8 +535,6 @@ async function handlePhotoFiles(files, inputEl){
       const thumb = await makeThumbnail(file, 320);
       point.photos.push({ filename, at: nowISO(), thumb });
       save();
-      // ここで一度render()すると、直後に開く共有シート(navigator.share)と
-      // ボタンの再生成タイミングが重なり、次のタップが反応しなくなることがあるため、
       // 保存が完全に終わるまでは再描画しない。
       await saveFile(renamed);
     }
@@ -1109,9 +1094,7 @@ function renderPointDetail(){
         <button class="btn btn-secondary shutter-btn" data-action="gallery" style="flex:1"><span class="shutter-emoji">🖼️</span><span class="shutter-label">ライブラリから</span></button>
       </div>
       <div class="hint" style="margin-top:8px">
-        ${isChromeIOS()
-          ? '撮影またはライブラリ選択後、自動でファイル保存されます。'
-          : '撮影またはライブラリ選択後、共有シートが開きます。「画像を保存」をタップして保存してください。'}
+        撮影後に「ダウンロード」をタップすると保存されます。
         サムネイルはタップで拡大できます。
       </div>
     </div>` : '';
@@ -1192,9 +1175,7 @@ function renderExport(){
       </div>
       <button class="btn btn-primary btn-block" data-action="exportJson">データを書き出す（共有／保存）</button>
       <div class="note-box" style="margin-top:10px">
-        ${isChromeIOS()
-          ? 'ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに、この端末のFilesアプリ（ダウンロード）へ個別に保存済みです。<br><br>1日の終わりに、Filesアプリを開いて、この現場の写真・音声・JSONファイルをまとめてUSBメモリ（またはもう一方の端末にAirDrop）へコピーしてください。'
-          : 'ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに、共有シートの「画像／ファイルを保存」からこの端末に個別に保存済みです。<br><br>このボタンを押すと出る共有シートから、そのままAirDropでもう一方の端末に送る、または「"ファイル"に保存」でUSBメモリへ保存できます。1日の終わりに、写真・音声・JSONをまとめてUSBメモリへコピーしてください。'}
+        ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに「ダウンロード」ダイアログで端末のFilesアプリ（ダウンロード）へ個別に保存済みです。<br><br>1日の終わりに、Filesアプリを開いて、この現場の写真・音声・JSONファイルをまとめてUSBメモリ（またはAirDrop）へコピーしてください。
       </div>
       <div class="divider"></div>
       <button class="btn btn-danger btn-block" data-action="deleteSite">この現場のデータを削除</button>
