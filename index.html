@@ -530,7 +530,7 @@ async function handlePhotoFiles(files, inputEl){
       point.photos = point.photos || [];
       const branch = point.photos.length + 1;
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-      const filename = `${data.currentSite}${point.number}-${pad2(branch)}.${ext}`;
+      const filename = `${data.currentSite}_${point.number}-${pad2(branch)}.${ext}`;
       const renamed = new File([file], filename, { type: file.type || 'image/jpeg' });
       const thumb = await makeThumbnail(file, 320);
       point.photos.push({ filename, at: nowISO(), thumb });
@@ -1089,10 +1089,7 @@ function renderPointDetail(){
         撮影済み：${point.photos.length}枚
       </div>
       ${photoThumbs ? `<div class="thumb-grid">${photoThumbs}</div>` : ''}
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary btn-block shutter-btn" data-action="camera" style="flex:1"><span class="shutter-emoji">📷</span><span class="shutter-label">撮影する</span></button>
-        <button class="btn btn-secondary shutter-btn" data-action="gallery" style="flex:1"><span class="shutter-emoji">🖼️</span><span class="shutter-label">ライブラリから</span></button>
-      </div>
+      <button class="btn btn-primary btn-block shutter-btn" data-action="camera"><span class="shutter-emoji">📷</span><span class="shutter-label">撮影する</span></button>
       <div class="hint" style="margin-top:8px">
         撮影後に「ダウンロード」をタップすると保存されます。
         サムネイルはタップで拡大できます。
