@@ -576,55 +576,87 @@ function triggerGallery(){
   fresh.click();
 }
 
-/* ============================== ボイスメモ ============================== */
+/* ============================== 音声メモ（文字起こし） ============================== */
 
-let mediaRecorder = null, recordedChunks = [], recStream = null, recStart = null;
+let srRecognition = null;
+let srInterimText = '';  // 認識中（確定前）のテキスト
+let srFinalText = '';    // 確定済みテキスト
 
-async function startRecording(){
-  try{
-    recStream = await navigator.mediaDevices.getUserMedia({ audio:true });
-  }catch(e){
-    alert('マイクを使用できませんでした。設定でマイクの許可を確認してください。');
+function isSpeechSupported(){
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function startRecording(){
+  if(!isSpeechSupported()){
+    alert('このブラウザは音声認識に対応していません。iOSのSafariをお使いください。');
     return;
   }
-  const cand = ['audio/mp4','audio/aac','audio/webm'];
-  const mimeType = cand.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
-  try{
-    mediaRecorder = mimeType ? new MediaRecorder(recStream, {mimeType}) : new MediaRecorder(recStream);
-  }catch(e){
-    mediaRecorder = new MediaRecorder(recStream);
-  }
-  recordedChunks = [];
-  mediaRecorder.ondataavailable = (ev) => { if(ev.data && ev.data.size > 0) recordedChunks.push(ev.data); };
-  mediaRecorder.onstop = onRecordingStop;
-  mediaRecorder.start();
-  recStart = Date.now();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  srRecognition = new SR();
+  srRecognition.lang = 'ja-JP';
+  srRecognition.continuous = true;       // 話し続けても止まらない
+  srRecognition.interimResults = true;   // 認識中テキストをリアルタイム表示
+
+  srFinalText = '';
+  srInterimText = '';
   data.ui.recording = true;
+  data.ui.srInterim = '';
   render();
+
+  srRecognition.onresult = (e) => {
+    let interim = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      if(e.results[i].isFinal){
+        srFinalText += e.results[i][0].transcript;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    srInterimText = interim;
+    // 認識中テキストをUIに反映（再描画は軽量更新で）
+    const el = document.getElementById('sr-interim');
+    if(el) el.textContent = srFinalText + interim;
+  };
+
+  srRecognition.onerror = (e) => {
+    if(e.error === 'not-allowed'){
+      alert('マイクの使用が許可されていません。設定でマイクの許可を確認してください。');
+    }
+    stopRecording();
+  };
+
+  srRecognition.onend = () => {
+    // iOSではタイムアウトで自動停止することがあるので、録音中なら再起動
+    if(data.ui.recording){
+      try{ srRecognition.start(); }catch(e){ /* 既に停止済みなら無視 */ }
+    }
+  };
+
+  srRecognition.start();
 }
+
 function stopRecording(){
-  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-}
-async function onRecordingStop(){
-  const point = getCurrentPoint();
-  const mt = mediaRecorder.mimeType || '';
-  const blob = new Blob(recordedChunks, { type: mt || 'audio/webm' });
-  const ext = mt.includes('mp4') ? 'm4a' : (mt.includes('aac') ? 'aac' : 'webm');
-  if(recStream) recStream.getTracks().forEach(t => t.stop());
   data.ui.recording = false;
-  if(point){
-    point.voiceMemos = point.voiceMemos || [];
-    const idx = point.voiceMemos.length + 1;
-    const filename = `${data.currentSite}${point.number}_memo-${pad2(idx)}.${ext}`;
-    const file = new File([blob], filename, { type: blob.type });
-    const durationSec = Math.max(1, Math.round((Date.now() - recStart)/1000));
-    point.voiceMemos.push({ filename, at: nowISO(), durationSec });
-    save();
-    await saveFile(file);
+  if(srRecognition){
+    srRecognition.onend = null; // 再起動ループを止める
+    try{ srRecognition.stop(); }catch(e){}
+    srRecognition = null;
   }
+  const text = (srFinalText + srInterimText).trim();
+  const point = getCurrentPoint();
+  if(point && text){
+    point.voiceMemos = point.voiceMemos || [];
+    point.voiceMemos.push({ text, at: nowISO() });
+    save();
+  }
+  srFinalText = '';
+  srInterimText = '';
   render();
   nudgeViewport();
 }
+
+// 後方互換：古いデータのaudio memoも表示できるよう残す
+function onRecordingStop(){}
 
 /* ============================== ナビゲーション ============================== */
 
@@ -757,6 +789,12 @@ function openPhotoLightbox(index){
     <div class="lightbox-caption">${escapeHtml(photo.filename)}</div>
     <button class="btn btn-secondary lightbox-close" data-action="closeModal">閉じる</button>
   </div>`);
+}
+
+function deleteMemo(index){
+  const point = getCurrentPoint(); if(!point) return;
+  point.voiceMemos.splice(index, 1);
+  save(); render();
 }
 
 function deletePoint(){
@@ -1097,14 +1135,21 @@ function renderPointDetail(){
     </div>` : '';
 
   const recSection = `
-    <div class="section-title">ボイスメモ</div>
+    <div class="section-title">音声メモ</div>
     <div class="card card-tight">
-      ${data.ui.recording ? `<div class="rec-indicator"><span class="rec-dot"></span>録音中…</div>` : ''}
+      ${data.ui.recording ? `
+        <div class="rec-indicator"><span class="rec-dot"></span>話しかけてください…</div>
+        <div id="sr-interim" style="font-size:14px;color:var(--fg);min-height:2em;margin:8px 0;line-height:1.6;word-break:break-all">${escapeHtml(srFinalText + srInterimText)}</div>
+      ` : ''}
       <button class="btn ${data.ui.recording?'btn-danger':'btn-secondary'} btn-block btn-compact" data-action="${data.ui.recording?'stopRec':'startRec'}">
-        ${data.ui.recording ? '■ 録音を止めて保存' : '🎙 録音開始'}
+        ${data.ui.recording ? '■ 止めて保存' : '🎙 話して記録'}
       </button>
-      ${point.voiceMemos.length ? point.voiceMemos.map(m => `
-        <div class="memo-row"><span class="fn">${escapeHtml(m.filename)}</span><span>${m.durationSec}秒</span></div>
+      ${!isSpeechSupported() ? `<div class="hint" style="margin-top:6px">⚠ このブラウザは音声認識未対応です</div>` : ''}
+      ${point.voiceMemos.length ? point.voiceMemos.map((m,i) => `
+        <div class="memo-row">
+          <span class="fn">${m.text ? escapeHtml(m.text) : escapeHtml(m.filename||'')}</span>
+          <button class="btn btn-ghost btn-sm" data-action="deleteMemo" data-index="${i}" style="flex-shrink:0">削除</button>
+        </div>
       `).join('') : ''}
     </div>`;
 
@@ -1167,12 +1212,12 @@ function renderExport(){
       <div class="card">
         <div style="font-weight:600;margin-bottom:6px">${escapeHtml(data.currentSite||'')}</div>
         <div style="font-size:13px;color:var(--text-dim)">
-          箇所数：${site?site.points.length:0}／写真：${totalPhotos}枚／ボイスメモ：${totalMemos}件
+          箇所数：${site?site.points.length:0}／写真：${totalPhotos}枚／音声メモ：${totalMemos}件
         </div>
       </div>
       <button class="btn btn-primary btn-block" data-action="exportJson">データを書き出す（共有／保存）</button>
       <div class="note-box" style="margin-top:10px">
-        ここで書き出されるのは入力データ（JSON）です。写真とボイスメモは撮影・録音のたびに「ダウンロード」ダイアログで端末のFilesアプリ（ダウンロード）へ個別に保存済みです。<br><br>1日の終わりに、Filesアプリを開いて、この現場の写真・音声・JSONファイルをまとめてUSBメモリ（またはAirDrop）へコピーしてください。
+        ここで書き出されるのは入力データ（JSON）です。音声メモはテキストとしてJSONに含まれます。写真は撮影のたびに「ダウンロード」ダイアログで端末のFilesアプリ（ダウンロード）へ個別に保存済みです。<br><br>1日の終わりに、Filesアプリを開いて、この現場の写真・JSONファイルをまとめてUSBメモリ（またはAirDrop）へコピーしてください。
       </div>
       <div class="divider"></div>
       <button class="btn btn-danger btn-block" data-action="deleteSite">この現場のデータを削除</button>
@@ -1228,6 +1273,7 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'addBlock': addBlock(el.dataset.category); break;
     case 'removeBlock': removeBlock(el.dataset.blockid); break;
     case 'deletePoint': deletePoint(); break;
+    case 'deleteMemo': deleteMemo(Number(el.dataset.index)); break;
     case 'retryLocation': retryLocation(); break;
     case 'setNumberStep': setNumberStep(getSite(), Number(el.dataset.step)); break;
   }
