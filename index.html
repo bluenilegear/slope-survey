@@ -978,7 +978,10 @@ function renderRockfallExtra(block, schema){
 }
 
 function renderBlock(block){
+  // 旧キー '落石源' → '落石源・落石' に自動マイグレーション
+  if(block.category === '落石源') block.category = '落石源・落石';
   const schema = CATEGORY_SCHEMA[block.category];
+  if(!schema) return `<div class="card block-card"><div class="block-head"><div class="cat">${escapeHtml(block.category)}</div></div><div style="color:var(--text-dim);font-size:13px">（不明なカテゴリ）</div></div>`;
   let fieldsHtml = '';
 
   if(block.category === '地形'){
