@@ -115,26 +115,30 @@
   .btn-block{ width:100%; margin-top:8px; }
   .btn-sm{ padding:8px 12px; font-size:13px; width:auto; }
   .btn-compact{ padding:8px 14px; font-size:14px; }
+  .point-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:6px;
+  }
   .list-item{
-    display:flex; align-items:center; gap:8px;
+    position:relative;
+    display:flex; flex-direction:column; gap:4px;
     background:var(--surface); border:1px solid var(--border);
-    border-radius:10px; padding:8px 10px; margin-bottom:6px; cursor:pointer;
+    border-radius:10px; padding:8px 10px 8px 10px; cursor:pointer;
   }
   .list-item:active{ background:var(--surface-2); }
   .list-item.important{
-    border-left:4px solid #E67E22;
-    background:rgba(230,126,34,0.06);
+    background:#F39C12;
+    border-color:#D68910;
+    color:#fff;
   }
-  .list-item .num{ font-family:var(--mono); font-weight:700; color:var(--accent); font-size:16px; min-width:40px; }
-  .list-item .meta{ flex:1; min-width:0; }
-  .list-item .meta .num-row{ display:flex; align-items:baseline; gap:8px; }
-  .list-item .meta .num-row .num{ font-size:16px; }
-  .list-item .meta .num-row .date{ font-size:11px; color:var(--text-dim); }
-  .list-item .meta .badges{ display:flex; flex-wrap:wrap; gap:3px; margin-top:3px; }
-  .list-item .chev{ color:var(--text-dim); }
+  .list-item.important .num{ color:#fff !important; }
+  .list-item.important .date{ color:rgba(255,255,255,0.8) !important; }
+  .list-item .num{ font-family:var(--mono); font-weight:700; color:var(--accent); font-size:16px; }
+  .list-item .date{ font-size:11px; color:var(--text-dim); }
+  .list-item .badges{ display:flex; flex-wrap:wrap; gap:3px; margin-top:2px; }
   .list-item .star-btn{
-    background:none; border:none; font-size:18px; padding:2px 4px; cursor:pointer;
-    opacity:0.35; line-height:1; flex-shrink:0;
+    position:absolute; top:4px; right:4px;
+    background:none; border:none; font-size:16px; padding:2px; cursor:pointer;
+    opacity:0.3; line-height:1;
   }
   .list-item .star-btn.on{ opacity:1; }
   .chip{
@@ -1108,6 +1112,7 @@ function renderPointList(){
       </div>` : ''}
       <button class="btn btn-primary btn-block" data-action="addPoint" style="margin-bottom:16px">＋ 新しい箇所を追加</button>
       ${items.length===0 ? `<div class="empty">まだ箇所がありません<br>上のボタンから追加してください</div>` : ''}
+      <div class="point-grid">
       ${items.map(p => {
         const cats = p.blocks.map(b=>b.category);
         const uniqueCats = [...new Set(cats)];
@@ -1115,25 +1120,21 @@ function renderPointList(){
         const isImportant = !!p.important;
         return `<div class="list-item${isImportant?' important':''}" data-action="openPoint" data-id="${p.id}">
           <button class="star-btn${isImportant?' on':''}" data-action="toggleImportant" data-id="${p.id}">⭐</button>
-          <div class="meta">
-            <div class="num-row">
-              <span class="num">${escapeHtml(p.number)}</span>
-              <span class="date">${escapeHtml(p.date||'')}</span>
-            </div>
-            <div class="badges">
-              ${data.deviceMode!=='data' ? `<span class="chip ${photoOk?'on':'warn'}">写真 ${p.photos.length}</span>` : ''}
-              ${p.voiceMemos.length ? `<span class="chip on">🎙 ${p.voiceMemos.length}</span>` : ''}
-              ${uniqueCats.length===0 ? `<span class="chip warn">未入力</span>` :
-                uniqueCats.map(c=>{
-                  const color = CATEGORY_COLORS[c];
-                  const style = color ? `style="background:${color};color:#FFFFFF;border-color:${color}"` : '';
-                  return `<span class="chip" ${style}>${escapeHtml(c)}</span>`;
-                }).join('')}
-            </div>
+          <div class="num">${escapeHtml(p.number)}</div>
+          <div class="date">${escapeHtml(p.date||'')}</div>
+          <div class="badges">
+            ${data.deviceMode!=='data' ? `<span class="chip ${photoOk?'on':'warn'}">写真 ${p.photos.length}</span>` : ''}
+            ${p.voiceMemos.length ? `<span class="chip on">🎙 ${p.voiceMemos.length}</span>` : ''}
+            ${uniqueCats.length===0 ? `<span class="chip warn">未入力</span>` :
+              uniqueCats.map(c=>{
+                const color = CATEGORY_COLORS[c];
+                const style = color ? `style="background:${color};color:#FFFFFF;border-color:${color}"` : '';
+                return `<span class="chip" ${style}>${escapeHtml(c)}</span>`;
+              }).join('')}
           </div>
-          <div class="chev">›</div>
         </div>`;
       }).join('')}
+      </div>
     </div>
   `;
 }
