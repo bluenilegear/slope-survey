@@ -242,7 +242,8 @@
 
 /* ============================== 定数・分類テーブル ============================== */
 
-const CATEGORIES = ['地質','地形','堆積物','水・浸食','落石源','人工構造物','ほか'];
+const CATEGORIES = ['地質','地形','堆積物','水・浸食','落石源・落石','人工構造物','ほか'];
+// ※ CATEGORY_SCHEMA のキーも '落石源・落石' に統一済み
 
 const HARDNESS_OPTIONS = [
   {code:'A', desc:'極硬（ハンマーで簡単に割れない／キンキン）'},
@@ -289,7 +290,7 @@ const CATEGORY_COLORS = {
   '地形':'#C1652A',
   '堆積物':'#B9932A',
   '水・浸食':'#1E8A8A',
-  '落石源':'#8C3A4A',
+  '落石源・落石':'#8C3A4A',
   '人工構造物':'#5F6058',
   'ほか':'#7A5C8C',
 };
@@ -346,22 +347,24 @@ const CATEGORY_SCHEMA = {
       {key:'note', label:'備考', type:'textarea'},
     ]
   },
-  '落石源':{
+  '落石源・落石':{
     fields:[
-      {key:'rockKind', label:'種類', type:'select', options:['浮石','転石']},
-      {key:'grouping', label:'単体／群', type:'select', options:['単体','群']},
-      {key:'sizeH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='単体'},
-      {key:'sizeW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='単体'},
-      {key:'sizeD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='単体'},
-      {key:'maxSizeH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
-      {key:'maxSizeW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
-      {key:'maxSizeD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
-      {key:'distH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
-      {key:'distW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
-      {key:'distD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.grouping==='群'},
-      {key:'stability', label:'安定度', type:'select', options:['AA','A','B','C'], optionMeta:[
+      {key:'rockKind', label:'種類', type:'select', options:['浮石','転石','落石']},
+      {key:'grouping', label:'単体／群', type:'select', options:['単体','群'], showIf:f=>f.rockKind!=='落石'},
+      {key:'sizeH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='単体'},
+      {key:'sizeW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='単体'},
+      {key:'sizeD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='単体'},
+      {key:'maxSizeH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='群'},
+      {key:'maxSizeW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='群'},
+      {key:'maxSizeD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='群'},
+      {key:'distH', label:'高さ(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='群'},
+      {key:'distW', label:'幅(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='群'},
+      {key:'distD', label:'奥行き(m)', type:'stepselect', step:0.1, min:0, max:15, unit:'m', showIf:f=>f.rockKind!=='落石'&&f.grouping==='群'},
+      {key:'stability', label:'安定度', type:'select', options:['AA','A','B','C'], showIf:f=>f.rockKind!=='落石', optionMeta:[
         {code:'AA', desc:'非常に不安定'},{code:'A', desc:'不安定'},{code:'B', desc:'やや不安定'},{code:'C', desc:'やや安定'}
       ]},
+      {key:'rsMainDia', label:'直径 主体(m)', type:'stepselect', step:0.1, min:0, max:10, unit:'m', showIf:f=>f.rockKind==='落石'},
+      {key:'rsMaxDia',  label:'直径 最大(m)', type:'stepselect', step:0.1, min:0, max:10, unit:'m', showIf:f=>f.rockKind==='落石'},
       {key:'note', label:'自由記載', type:'textarea'},
     ]
   },
@@ -956,6 +959,12 @@ function renderGeologyExtra(block, schema){
 function renderRockfallExtra(block, schema){
   const f = block.fields;
   const byKey = k => schema.fields.find(x => x.key === k);
+  if(f.rockKind === '落石'){
+    let html = renderField(block.id, byKey('rockKind'), f);
+    html += renderCompactRow(block.id, '直径', [byKey('rsMainDia'), byKey('rsMaxDia')], f);
+    html += renderField(block.id, byKey('note'), f);
+    return html;
+  }
   let html = renderCompactRow(block.id, '種類／単体・群', [byKey('rockKind'), byKey('grouping')], f);
   if(f.grouping === '単体'){
     html += renderCompactRow(block.id, 'サイズ', [byKey('sizeH'), byKey('sizeW'), byKey('sizeD')], f);
@@ -989,7 +998,7 @@ function renderBlock(block){
       fieldsHtml += renderField(block.id, f, block.fields);
     }
     fieldsHtml += renderGeologyExtra(block, schema);
-  } else if(block.category === '落石源'){
+  } else if(block.category === '落石源・落石'){
     fieldsHtml += renderRockfallExtra(block, schema);
   } else {
     for(const f of schema.fields){
