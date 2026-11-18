@@ -367,7 +367,7 @@ const CATEGORY_SCHEMA = {
   },
   '人工構造物':{
     fields:[
-      {key:'type', label:'種類', type:'select', options:['落石防護網','落石防護柵','切土のり面','盛土','砂防施設'], allowOther:true},
+      {key:'type', label:'種類', type:'select', options:['落石防護網','落石防護柵','法枠工','切土のり面','盛土','砂防施設'], allowOther:true},
       {key:'sizeH', label:'サイズ：高さ(m)', type:'number'},
       {key:'sizeW', label:'サイズ：幅(m)', type:'number'},
       {key:'note', label:'自由記載', type:'textarea'},
@@ -1114,17 +1114,17 @@ function renderLocationLine(point){
   const loc = point.location || { status:'unsupported' };
   let text = '';
   if(loc.status === 'ok'){
-    text = `📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}（誤差±${Math.round(loc.accuracy)}m）`;
+    text = `📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)} ±${Math.round(loc.accuracy)}m`;
   } else if(loc.status === 'pending'){
-    text = '📍 位置情報を取得中…';
+    text = '📍 取得中…';
   } else if(loc.status === 'error'){
-    text = '📍 取得できませんでした';
+    text = '📍 取得できず';
   } else {
-    text = '📍 この端末では使えません';
+    text = '📍 未対応';
   }
-  return `<div class="location-line">
+  return `<div class="location-line" style="font-size:11px">
     <span>${escapeHtml(text)}</span>
-    <button class="btn btn-ghost btn-sm" data-action="retryLocation">再取得</button>
+    <button class="btn btn-ghost btn-sm" data-action="retryLocation" style="font-size:11px;padding:2px 7px">再取得</button>
   </div>`;
 }
 function renderPointDetail(){
@@ -1191,9 +1191,9 @@ function renderPointDetail(){
     <div style="padding:4px 16px 0;font-size:11px;color:var(--text-dim);text-align:right">${lastSavedLabel()}</div>
     <div class="content">
       <div class="card card-tight">
-        <div class="row">
-          <div class="field-compact"><label>箇所番号</label><input class="compact-input" type="text" data-pointfield="number" value="${escapeHtml(point.number)}"></div>
-          <div class="field-compact"><label>日付</label><input class="compact-input" type="date" data-pointfield="date" value="${escapeHtml(point.date)}"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="field-compact" style="flex:1"><label>箇所番号</label><input class="compact-input" type="text" data-pointfield="number" value="${escapeHtml(point.number)}"></div>
+          <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;padding-top:14px">${escapeHtml(point.date)}</div>
         </div>
         ${renderLocationLine(point)}
       </div>
@@ -1201,7 +1201,8 @@ function renderPointDetail(){
       ${recSection}
       ${blocksSection}
       <div class="divider"></div>
-      <button class="btn btn-danger btn-block" data-action="deletePoint">この箇所を削除</button>
+      <button class="btn btn-primary btn-block" data-action="addNextPoint">＋ 次の箇所を追加</button>
+      <button class="btn btn-danger btn-block" data-action="deletePoint" style="margin-top:8px">この箇所を削除</button>
     </div>
   `;
 }
@@ -1283,6 +1284,7 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'goPointList': goPointList(); break;
     case 'openPoint': openPoint(el.dataset.id); break;
     case 'addPoint': addPoint(); break;
+    case 'addNextPoint': addPoint(); break;
     case 'goExport': goExport(); break;
     case 'exportJson': exportJson(); break;
     case 'deleteSite': deleteSite(); break;
