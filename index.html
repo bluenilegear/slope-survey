@@ -116,15 +116,27 @@
   .btn-sm{ padding:8px 12px; font-size:13px; width:auto; }
   .btn-compact{ padding:8px 14px; font-size:14px; }
   .list-item{
-    display:flex; align-items:center; gap:12px;
+    display:flex; align-items:center; gap:8px;
     background:var(--surface); border:1px solid var(--border);
-    border-radius:12px; padding:12px 14px; margin-bottom:8px; cursor:pointer;
+    border-radius:10px; padding:8px 10px; margin-bottom:6px; cursor:pointer;
   }
   .list-item:active{ background:var(--surface-2); }
-  .list-item .num{ font-family:var(--mono); font-weight:700; color:var(--accent); font-size:17px; min-width:44px; }
+  .list-item.important{
+    border-left:4px solid #E67E22;
+    background:rgba(230,126,34,0.06);
+  }
+  .list-item .num{ font-family:var(--mono); font-weight:700; color:var(--accent); font-size:16px; min-width:40px; }
   .list-item .meta{ flex:1; min-width:0; }
-  .list-item .meta .badges{ display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+  .list-item .meta .num-row{ display:flex; align-items:baseline; gap:8px; }
+  .list-item .meta .num-row .num{ font-size:16px; }
+  .list-item .meta .num-row .date{ font-size:11px; color:var(--text-dim); }
+  .list-item .meta .badges{ display:flex; flex-wrap:wrap; gap:3px; margin-top:3px; }
   .list-item .chev{ color:var(--text-dim); }
+  .list-item .star-btn{
+    background:none; border:none; font-size:18px; padding:2px 4px; cursor:pointer;
+    opacity:0.35; line-height:1; flex-shrink:0;
+  }
+  .list-item .star-btn.on{ opacity:1; }
   .chip{
     font-size:11px; padding:3px 8px; border-radius:999px;
     background:var(--surface-3); color:var(--text-dim); border:1px solid var(--border);
@@ -1100,14 +1112,18 @@ function renderPointList(){
         const cats = p.blocks.map(b=>b.category);
         const uniqueCats = [...new Set(cats)];
         const photoOk = data.deviceMode==='data' ? true : (p.photos.length>0);
-        return `<div class="list-item" data-action="openPoint" data-id="${p.id}">
-          <div class="num">${escapeHtml(p.number)}</div>
+        const isImportant = !!p.important;
+        return `<div class="list-item${isImportant?' important':''}" data-action="openPoint" data-id="${p.id}">
+          <button class="star-btn${isImportant?' on':''}" data-action="toggleImportant" data-id="${p.id}">⭐</button>
           <div class="meta">
-            <div style="font-size:13px;color:var(--text-dim)">${escapeHtml(p.date||'')}</div>
+            <div class="num-row">
+              <span class="num">${escapeHtml(p.number)}</span>
+              <span class="date">${escapeHtml(p.date||'')}</span>
+            </div>
             <div class="badges">
               ${data.deviceMode!=='data' ? `<span class="chip ${photoOk?'on':'warn'}">写真 ${p.photos.length}</span>` : ''}
               ${p.voiceMemos.length ? `<span class="chip on">🎙 ${p.voiceMemos.length}</span>` : ''}
-              ${uniqueCats.length===0 ? `<span class="chip warn">調査対象未入力</span>` :
+              ${uniqueCats.length===0 ? `<span class="chip warn">未入力</span>` :
                 uniqueCats.map(c=>{
                   const color = CATEGORY_COLORS[c];
                   const style = color ? `style="background:${color};color:#FFFFFF;border-color:${color}"` : '';
@@ -1199,6 +1215,7 @@ function renderPointDetail(){
       <button class="back" data-action="goPointList">‹</button>
       <div class="stamp"><span class="site">${escapeHtml(data.currentSite)}</span><span class="num">${escapeHtml(point.number)}</span></div>
       <div style="flex:1"></div>
+      <button data-action="toggleImportantDetail" style="background:none;border:none;font-size:22px;padding:4px 6px;cursor:pointer;opacity:${point.important?'1':'0.3'}">${point.important?'⭐':'☆'}</button>
     </div>
     <div style="padding:4px 16px 0;font-size:11px;color:var(--text-dim);text-align:right">${lastSavedLabel()}</div>
     <div class="content">
@@ -1297,6 +1314,17 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'openPoint': openPoint(el.dataset.id); break;
     case 'addPoint': addPoint(); break;
     case 'addNextPoint': addPoint(); break;
+    case 'toggleImportant': {
+      e.stopPropagation();
+      const site = getSite(); if(!site) break;
+      const pt = site.points.find(x=>x.id===el.dataset.id); if(!pt) break;
+      pt.important = !pt.important; save(); render(); break;
+    }
+    case 'toggleImportantDetail': {
+      const site = getSite(); if(!site) break;
+      const pt = site.points.find(x=>x.id===data.ui.currentPointId); if(!pt) break;
+      pt.important = !pt.important; save(); render(); break;
+    }
     case 'goExport': goExport(); break;
     case 'exportJson': exportJson(); break;
     case 'deleteSite': deleteSite(); break;
